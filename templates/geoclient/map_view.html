@@ -1,0 +1,17 @@
+<!-- geoclient/templates/geoclient/map_view.html -->
+{% extends "./_base.html" %}
+{% load static %}
+
+{% block title %}Карта RINEX точек{% endblock %}
+
+{% block content %}
+<div id="map" style="width: 100%; height: 100%;"></div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    // Передаем URL API в JavaScript
+    const pointsApiUrl = "{% url 'point-list' %}"; // 'point-list' - это имя, которое DRF генерирует для ViewSet
+</script>
+<script src="{% static 'geoclient/js/map.js' %}"></script>
+{% endblock %}
