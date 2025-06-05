@@ -27,8 +27,15 @@ SECRET_KEY = 'django-insecure-edfnjl$0_tlvmmy&wse5$37&ff-=-7w7218s^q!lfh_adpivd-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
+
+DATA_UPLOAD_MAX_NUMBER_FILES = 300
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:5174',  # Адрес вашего Vite dev server (стандартный порт Vite)
+    'http://127.0.0.1:5174', # Добавьте и этот вариант на всякий случай
+]
 
 # Application definition
 
@@ -53,6 +60,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+
 ]
 
 ROOT_URLCONF = 'app.urls'
@@ -89,7 +98,7 @@ DATABASES = {
         'USER': 'postgres',      # Замените на пользователя БД
         'PASSWORD': '12345', # Замените на пароль
         'HOST': 'localhost',          # или IP адрес вашего сервера БД
-        'PORT': '5433',               # Стандартный порт PostgreSQL
+        'PORT': '5432',               # Стандартный порт PostgreSQL
     }
 }
 
@@ -138,8 +147,12 @@ MEDIA_ROOT = BASE_DIR / 'mediafiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # app/settings.py
+# app/settings.py
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'geoclient', 'static', 'geoclient', 'vue_dist'),
+    # Если Vite собирает в client/dist:
+    os.path.join(BASE_DIR, 'client', 'dist'),
+    # Если Vite действительно собирает в geoclient/static/geoclient/vue_dist:
+    # os.path.join(BASE_DIR, 'geoclient', 'static', 'geoclient', 'vue_dist'),
 ]
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -150,7 +163,8 @@ CORS_ALLOW_ALL_ORIGINS = True
 # Проверяем, работаем ли на Windows
 if platform.system() == 'Windows':
 
-    CONDA_BIN_PATH = 'C:/Users/iimin/miniconda3/Library/bin'
+    CONDA_BIN_PATH = 'C:/Users/ImineevI/Проекты/GeoClient/.conda/Library/bin'
+
 
     # Проверяем, существует ли указанная папка перед использованием
     if os.path.exists(CONDA_BIN_PATH):

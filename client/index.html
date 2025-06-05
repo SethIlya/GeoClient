@@ -18,13 +18,14 @@
     
     <script>
       // Заглушка для DJANGO_SETTINGS, если запускаем напрямую с Vite dev server без Django
-      if (typeof window.DJANGO_SETTINGS === 'undefined') {
+       if (typeof window.DJANGO_SETTINGS === 'undefined') {
         window.DJANGO_SETTINGS = {
-          csrfToken: "dummyCSRFTokenForDev", // Не будет использоваться без Django POST
-          apiPointsUrl: "/api/points/", // Проксируется Vite
-          apiUploadUrl: "/api/upload-rinex/" // Проксируется Vite
-        };
-      }
+      csrfToken: null, // Чтобы main.js пошел на API
+      apiPointsUrl: "/api/points/", // Будет проксироваться
+      apiUploadUrl: "/api/upload-rinex/", // Будет проксироваться
+      apiCsrfUrl: "/api/get-csrf-token/" // Будет проксироваться
+    };
+  }
     </script>
   </head>
   <body>

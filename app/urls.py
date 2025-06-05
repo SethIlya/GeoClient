@@ -23,25 +23,10 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-
-    # Подключаем все URL из geoclient/urls.py
-    # Все пути из geoclient/urls.py будут доступны от корня сайта (например, /api/upload-rinex/)
     path('', include('geoclient.urls')), 
-    
-    # Подключаем URL для DRF API точек (если используется)
-    # Они будут доступны по префиксу /api/ (например, /api/points/)
-    # Убедитесь, что 'geoclient.api_urls' существует и настроен, если раскомментируете
-    path('api/', include('geoclient.api_urls')), 
-
-    # Если бы вы хотели, чтобы все URL из geoclient.urls имели префикс, например, /map/:
-    # path('map/', include('geoclient.urls')),
-    # Тогда URL для загрузки был бы /map/api/upload-rinex/
+    path('api/', include('geoclient.api_urls')), # <--- ВАЖНО: /api/ должно вести к geoclient.api_urls
 ]
 
 # Это для раздачи медиа-файлов (загруженных RINEX) в режиме DEBUG
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    # Раздача статических файлов (собранного Vue) обычно обрабатывается Django автоматически
-    # в DEBUG режиме, если STATIC_URL и STATICFILES_DIRS настроены,
-    # или веб-сервером (Nginx) в production.
-    # urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT) # Обычно не требуется для runserver
