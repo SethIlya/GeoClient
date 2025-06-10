@@ -3,29 +3,21 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, onBeforeUnmount } from 'vue'; // defineProps, defineEmits не нужны для импорта в <script setup>
+import { ref, onMounted, watch, onBeforeUnmount } from 'vue';
 import L from 'leaflet';
 
 const props = defineProps({
-  pointsData: {
-    type: Array,
-    required: true,
-    default: () => []
-  },
-  selectedPointIds: {
-    type: Array,
-    default: () => []
-  }
+  pointsData: { type: Array, required: true, default: () => [] },
+  selectedPointIds: { type: Array, default: () => [] } // Массив строковых ID
 });
-
 const emit = defineEmits(['point-clicked', 'map-ready']);
 
 const mapDiv = ref(null);
 let mapInstance = null;
 let markersLayer = null;
 
-// --- Начало: Код для pointTypesList, pointTypeToText, createCustomIcon ---
-// (Этот код должен быть вашим актуальным рабочим кодом для создания иконок)
+// --- Код для pointTypesList, pointTypeToText, createCustomIcon ---
+// Вставьте сюда ваш актуальный код для этих функций
 const pointTypesList = [
     { value: 'ggs', text: 'Пункты гос. геодезической сети' },
     { value: 'ggs_kurgan', text: 'Пункты ГГС на курганах' },
@@ -35,12 +27,10 @@ const pointTypesList = [
     { value: 'leveling', text: 'Нивелирные марки/реперы' },
     { value: 'default', text: 'Неопределенный тип' },
 ];
-
 const pointTypeToText = (value) => {
     const found = pointTypesList.find(pt => pt.value === value);
     return found ? found.text : (value || 'N/A');
 };
-
 const createCustomIcon = (pointType, isSelected) => {
     let className = 'custom-div-icon';
     let htmlContent = '';
@@ -80,7 +70,7 @@ const createCustomIcon = (pointType, isSelected) => {
             className += ' icon-astro';
             htmlContent = '<span class="star-symbol">★</span><span class="astro-text">астр.</span>';
             iconSizeTuple = [ astroContentWidth + 2 * astroPaddingX, astroContentHeight + 2 * astroPaddingY ];
-            iconAnchorTuple = [ astroPaddingX + (astroContentHeight / 2), astroPaddingY + (astroContentHeight / 2) ]; // Уточнено якорение для астро
+            iconAnchorTuple = [ astroPaddingX + (astroContentHeight / 2), astroPaddingY + (astroContentHeight / 2) ];
             break;
         case 'leveling':
             className += ' icon-leveling'; htmlContent = '<div class="diag-line line1"></div><div class="diag-line line2"></div>';
@@ -92,21 +82,11 @@ const createCustomIcon = (pointType, isSelected) => {
             break;
     }
     if (isSelected) { className += ' selected'; }
-    
     let popupOffsetY;
-    if (pointType === 'ggs') {
-        popupOffsetY = -iconAnchorTuple[1] - popupOffsetAboveIcon;
-    } else if (pointType === 'ggs_kurgan') {
-        // Центр треугольника находится примерно на 2/3 высоты от вершины
-        // Якорь иконки ggs_kurgan - центр всего divIcon.
-        // popupOffsetY должен быть от якоря до верхнего края внутреннего треугольника + смещение
-        popupOffsetY = -(baseGgsSize.height / 2 + kurganContainerPadding - (baseGgsSize.height - iconAnchorTuple[1])) - popupOffsetAboveIcon; // Это неверно, упростим
-        popupOffsetY = -(baseGgsSize.height / 2) - popupOffsetAboveIcon; // По центру внутреннего символа
-    } else if (pointType === 'survey_kurgan' || pointType === 'survey') {
-        popupOffsetY = -(baseSurveySize.height / 2) - popupOffsetAboveIcon; // По центру внутреннего символа
-    } else { // astro, leveling, default
-        popupOffsetY = -(iconSizeTuple[1] / 2) - popupOffsetAboveIcon; // По центру иконки
-    }
+    if (pointType === 'ggs') popupOffsetY = -iconAnchorTuple[1] - popupOffsetAboveIcon;
+    else if (pointType === 'ggs_kurgan') popupOffsetY = -(baseGgsSize.height / 2) - popupOffsetAboveIcon;
+    else if (pointType === 'survey_kurgan' || pointType === 'survey') popupOffsetY = -(baseSurveySize.height / 2) - popupOffsetAboveIcon;
+    else popupOffsetY = -(iconSizeTuple[1] / 2) - popupOffsetAboveIcon;
     
     return L.divIcon({
         className: className, html: htmlContent,
@@ -115,78 +95,59 @@ const createCustomIcon = (pointType, isSelected) => {
         popupAnchor: L.point(0, popupOffsetY)
     });
 };
-// --- Конец: Код для pointTypesList, pointTypeToText, createCustomIcon ---
+// --- Конец кода для pointTypesList, pointTypeToText, createCustomIcon ---
 
 const initializeMap = () => {
-  // Проверяем, что mapDiv.value существует и карта еще не создана
   if (mapDiv.value && !mapInstance) {
     console.log("[MapComponent] initializeMap: Инициализация новой карты.");
-    mapInstance = L.map(mapDiv.value, {
-        // preferCanvas: true // Можно раскомментировать для лучшей производительности с большим кол-вом маркеров
-    }).setView([55.751244, 37.618423], 5); // Центральная точка и зум по умолчанию
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(mapInstance);
-
-    markersLayer = L.layerGroup().addTo(mapInstance); // Создаем слой для маркеров
+    mapInstance = L.map(mapDiv.value).setView([55.751244, 37.618423], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap contributors' }).addTo(mapInstance);
+    markersLayer = L.layerGroup().addTo(mapInstance);
     emit('map-ready', mapInstance);
   } else if (mapDiv.value && mapInstance) {
-    console.warn("[MapComponent] initializeMap: Попытка повторной инициализации уже существующей карты. Пропуск.");
-  } else if (!mapDiv.value) {
-    console.error("[MapComponent] initializeMap: mapDiv не найден. Карта не может быть инициализирована.");
+    console.warn("[MapComponent] initializeMap: Попытка повторной инициализации. Пропуск.");
   }
 };
 
 const updateMarkersOnMap = (pointsToRender) => {
-  // Важно: выполняем действия только если карта и слой маркеров готовы
   if (!mapInstance || !markersLayer) {
-    console.warn("[MapComponent] updateMarkersOnMap: Карта или слой маркеров не инициализированы. Обновление маркеров отложено.");
+    console.warn("[MapComponent] updateMarkersOnMap: Карта или слой маркеров не инициализированы.");
     return; 
   }
-  console.log("[MapComponent] updateMarkersOnMap: Обновление маркеров. Количество точек для рендера:", pointsToRender?.length);
-  markersLayer.clearLayers(); // Очищаем предыдущие маркеры
+  console.log("[MapComponent] updateMarkersOnMap: Обновление маркеров. Точек:", pointsToRender?.length);
+  markersLayer.clearLayers();
 
   if (pointsToRender && pointsToRender.length > 0) {
     pointsToRender.forEach(feature => {
       if (feature && feature.geometry && feature.geometry.type === 'Point' && feature.properties) {
         const [longitude, latitude] = feature.geometry.coordinates;
         const properties = feature.properties;
-        const pointId = properties.id;
+        const pointId = String(properties.id); // Убедимся, что ID - строка
 
-        if (pointId == null) { // Пропускаем точки без ID
-            console.warn("[MapComponent] updateMarkersOnMap: Пропуск точки без ID в properties:", feature);
+        if (!pointId) {
+            console.warn("[MapComponent] Пропуск точки без ID:", feature);
             return; 
         }
 
-        const isSelected = props.selectedPointIds.includes(pointId); // Проверяем, выбран ли маркер
+        // props.selectedPointIds уже должен содержать строки
+        const isSelected = props.selectedPointIds.includes(pointId); 
         const finalPointType = properties.point_type || 'default';
         const customIcon = createCustomIcon(finalPointType, isSelected);
         
-        const marker = L.marker([latitude, longitude], { 
-            icon: customIcon, 
-            pointId: pointId // Сохраняем ID точки в опциях маркера для легкого доступа
-        });
+        const marker = L.marker([latitude, longitude], { icon: customIcon, pointId: pointId }); // Сохраняем строковый ID
 
-        // Формирование HTML для попапа
-        let popupHtml = `<div class="leaflet-popup-bootstrap">
-                           <h6 class="mb-1 text-primary">${properties.name || 'Без имени'}</h6>
-                           <small class="text-muted">ID: ${pointId} | Тип: ${pointTypeToText(finalPointType)}</small><hr class="my-1">
-                           <p class="mb-1"><strong>Координаты:</strong><br><span class="font-monospace">${parseFloat(latitude).toFixed(6)}, ${parseFloat(longitude).toFixed(6)}</span></p>`;
-        if (properties.timestamp_display) {
-          popupHtml += `<p class="mb-1"><strong>Время:</strong><br>${properties.timestamp_display}</p>`;
-        }
-        if (properties.description) {
-          popupHtml += `<p class="mb-0"><strong>Описание:</strong><br>${properties.description}</p>`;
-        }
+        let popupHtml = `<div class="leaflet-popup-bootstrap"><h6 class="mb-1 text-primary">${properties.name || properties.station_name || pointId}</h6><small class="text-muted">ID: ${pointId} | Тип: ${pointTypeToText(finalPointType)}</small><hr class="my-1">`;
+        popupHtml += `<p class="mb-1"><strong>Координаты:</strong><br><span class="font-monospace">${parseFloat(latitude).toFixed(6)}, ${parseFloat(longitude).toFixed(6)}</span></p>`;
+        if (properties.timestamp_display) popupHtml += `<p class="mb-1"><strong>Время:</strong><br>${properties.timestamp_display}</p>`;
+        if (properties.receiver_number) popupHtml += `<p class="mb-1"><strong>Приемник №:</strong><br>${properties.receiver_number}</p>`;
+        if (properties.antenna_height != null) popupHtml += `<p class="mb-1"><strong>Высота ант. (H):</strong><br>${properties.antenna_height.toFixed(4)} м</p>`;
+        if (properties.description) popupHtml += `<p class="mb-0"><strong>Описание:</strong><br>${properties.description}</p>`;
         popupHtml += `</div>`;
-        marker.bindPopup(popupHtml, { minWidth: 220 });
+        marker.bindPopup(popupHtml, { minWidth: 240 });
 
-        // Обработчик клика по маркеру
         marker.on('click', (e) => {
-          L.DomEvent.stopPropagation(e); // Остановка всплытия события, чтобы не срабатывал клик по карте
-          emit('point-clicked', feature); // Эмитим весь объект feature точки
+          L.DomEvent.stopPropagation(e);
+          emit('point-clicked', feature); 
         });
         markersLayer.addLayer(marker);
       }
@@ -194,66 +155,52 @@ const updateMarkersOnMap = (pointsToRender) => {
   }
 };
 
-// Следим за изменением props.pointsData (массива точек)
-// Этот watch будет срабатывать, когда данные точек загрузятся или изменятся (например, после загрузки файла)
 watch(() => props.pointsData, (newPoints) => {
-  console.log("[MapComponent] watch props.pointsData: Данные точек изменились. Попытка обновления маркеров.");
-  // updateMarkersOnMap сам проверит, готова ли карта
+  console.log("[MapComponent] watch props.pointsData: Данные точек изменились.");
   updateMarkersOnMap(newPoints); 
-}, { deep: true }); // immediate: true убран, чтобы не срабатывать до onMounted
+}, { deep: true });
 
-// Следим за изменением props.selectedPointIds (массива ID выбранных точек)
-// Этот watch обновляет стиль маркеров (выделение/снятие выделения)
 watch(() => props.selectedPointIds, (newSelectedIds, oldSelectedIds) => {
-  if (!markersLayer) {
-      console.warn("[MapComponent] watch props.selectedPointIds: Слой маркеров не готов для обновления выделения.");
-      return;
-  }
-  console.log("[MapComponent] watch props.selectedPointIds: Выбранные ID изменились. Новые:", newSelectedIds, "Старые:", oldSelectedIds);
+  if (!markersLayer) return;
+  console.log("[MapComponent] watch props.selectedPointIds: Выбранные ID изменились. Новые:", newSelectedIds);
   
-  // Обновляем только те маркеры, чье состояние выделения могло измениться
-  const idsToCheck = new Set();
-  (oldSelectedIds || []).forEach(id => idsToCheck.add(id)); // Добавляем старые выбранные
-  (newSelectedIds || []).forEach(id => idsToCheck.add(id)); // Добавляем новые выбранные
+  const idsToUpdate = new Set();
+  (oldSelectedIds || []).map(String).forEach(id => idsToUpdate.add(id));
+  (newSelectedIds || []).map(String).forEach(id => idsToUpdate.add(id));
 
-  idsToCheck.forEach(pointId => {
+  idsToUpdate.forEach(pointIdStr => {
     markersLayer.eachLayer(marker => {
-      if (marker.options.pointId === pointId) {
-        const pointFeature = props.pointsData.find(p => p.properties && p.properties.id === pointId);
+      if (String(marker.options.pointId) === pointIdStr) {
+        const pointFeature = props.pointsData.find(p => p.properties && String(p.properties.id) === pointIdStr);
         if (pointFeature && pointFeature.properties) {
           const pointType = pointFeature.properties.point_type || 'default';
-          const isCurrentlySelected = (newSelectedIds || []).includes(pointId);
-          marker.setIcon(createCustomIcon(pointType, isCurrentlySelected)); // Обновляем иконку
+          const isCurrentlySelected = (newSelectedIds || []).includes(pointIdStr);
+          marker.setIcon(createCustomIcon(pointType, isCurrentlySelected));
         }
-        return false; // Нашли нужный маркер, выходим из eachLayer для этого ID
+        return false; 
       }
     });
   });
 }, { deep: true });
 
-// Хук жизненного цикла: вызывается после того, как компонент смонтирован в DOM
 onMounted(() => {
-  console.log("[MapComponent] onMounted: Компонент смонтирован. Инициализация карты...");
-  initializeMap(); // Инициализируем карту (создает mapInstance и markersLayer)
-  
-  // После инициализации карты, если данные точек (props.pointsData) уже доступны,
-  // отрисовываем их. Это для случая, когда данные приходят до или одновременно с монтированием.
+  console.log("[MapComponent] onMounted: Начало монтирования.");
+  initializeMap();
   if (props.pointsData && props.pointsData.length > 0 && mapInstance && markersLayer) {
-      console.log("[MapComponent] onMounted: Карта готова, есть начальные данные. Отрисовка маркеров.");
+      console.log("[MapComponent] onMounted: Первоначальная отрисовка маркеров.");
       updateMarkersOnMap(props.pointsData);
   } else {
-      console.log("[MapComponent] onMounted: Карта готова, но нет начальных данных для маркеров или карта/слой еще не созданы.");
+      console.log("[MapComponent] onMounted: Нет начальных данных или карта не готова для маркеров.");
   }
 });
 
-// Хук жизненного цикла: вызывается перед тем, как компонент будет размонтирован
 onBeforeUnmount(() => {
-  console.log("[MapComponent] onBeforeUnmount: Компонент будет размонтирован. Очистка карты...");
+  console.log("[MapComponent] onBeforeUnmount: Очистка карты...");
   if (mapInstance) {
-    mapInstance.remove(); // Корректно удаляем инстанс карты Leaflet
+    mapInstance.remove();
     mapInstance = null;
-    markersLayer = null; // Также сбрасываем ссылку на слой
-    console.log("[MapComponent] Карта и слой маркеров успешно удалены.");
+    markersLayer = null;
+    console.log("[MapComponent] Карта и слой маркеров удалены.");
   }
 });
 </script>
@@ -315,7 +262,7 @@ onBeforeUnmount(() => {
 .leaflet-popup-close-button { padding: 0.5rem 0.5rem !important; font-size: 1.25rem !important; color: #6c757d !important; }
 .leaflet-popup-close-button:hover { color: #212529 !important; background-color: #e9ecef !important; }
 /* --- Конец стилей для иконок --- */
-.map-container { /* Добавьте, если еще нет, для корректной высоты карты */
+.map-container { 
   height: 100%;
   width: 100%;
 }
