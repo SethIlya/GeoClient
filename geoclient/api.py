@@ -7,12 +7,17 @@ from .models import Point, StationDirectoryName
 from .serializers import PointSerializer, StationDirectoryNameSerializer
 import traceback
 
+# --- НОВЫЕ ИМПОРТЫ ---
+from django.http import FileResponse, Http404, HttpResponse
+import os
+# --- КОНЕЦ НОВЫХ ИМПОРТОВ ---
+
 class PointViewSet(
     mixins.RetrieveModelMixin,
     mixins.UpdateModelMixin,
     mixins.ListModelMixin,
     mixins.DestroyModelMixin,
-    viewsets.GenericViewSet  # Используем GenericViewSet и явно добавляем нужные mixins
+    viewsets.GenericViewSet  
 ):
     queryset = Point.objects.all().order_by('id')
     serializer_class = PointSerializer
@@ -20,22 +25,49 @@ class PointViewSet(
     bbox_filter_field = 'location'
     # filter_backends = (gis_filters.InBBoxFilter,)
 
+    # --- НОВЫЙ ЭКШЕН (ACTION) ДЛЯ СКАЧИВАНИЯ ФАЙЛА ---
+    @action(detail=True, methods=['get'], url_path='download-source-file')
+    def download_source_file(self, request, id=None):
+        """
+        Позволяет скачать исходный RINEX файл для указанной точки.
+        """
+        try:
+            point = self.get_object()
+            if not point.source_file or not point.source_file.file:
+                raise Http404("Для этой точки нет исходного файла.")
+
+            source_file = point.source_file.file
+            
+            # Проверяем, существует ли файл на диске
+            if not source_file.storage.exists(source_file.name):
+                raise Http404("Файл не найден в хранилище.")
+            
+            # Открываем файл и возвращаем его как FileResponse
+            # FileResponse автоматически установит нужные заголовки
+            response = FileResponse(source_file.open('rb'), as_attachment=True)
+            
+            # Можно явно указать имя файла для скачивания
+            # response['Content-Disposition'] = f'attachment; filename="{os.path.basename(source_file.name)}"'
+
+            return response
+
+        except Http404 as e:
+            return Response({"detail": str(e)}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            traceback.print_exc()
+            return Response({"detail": "Внутренняя ошибка сервера при попытке отдать файл."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    # --- КОНЕЦ НОВОГО ЭКШЕНА ---
+
     def partial_update(self, request, *args, **kwargs):
         point_id = kwargs.get('id') # Используем lookup_field
-        # print(f"\n[Django PointViewSet] PATCH request for partial_update.")
-        # print(f"[Django PointViewSet] id='{point_id}', request.data: {request.data}")
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=True) 
         try:
             serializer.is_valid(raise_exception=True)
         except Exception as e:
-            # print("[Django PointViewSet] Validation error:", e)
-            # if hasattr(serializer, 'errors'): print("[Django PointViewSet] Serializer errors:", serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        # print("[Django PointViewSet] Serializer valid. Performing update...")
         try:
             self.perform_update(serializer)
-            # print(f"[Django PointViewSet] perform_update for instance ID '{instance.id}' successful.")
         except Exception as e:
             print(f"[Django PointViewSet] CRITICAL ERROR during perform_update/save for instance ID '{instance.id}':")
             traceback.print_exc()
@@ -45,8 +77,6 @@ class PointViewSet(
             instance._prefetched_objects_cache = {}
             
         response_data = serializer.data
-        # print("[Django PointViewSet] Serializer.data AFTER save (response to client):", response_data)
-        # print(f"[Django PointViewSet] Sending 200 OK response for id='{point_id}'.")
         return Response(response_data)
 
     @action(detail=False, methods=['post'], url_path='delete-multiple')
@@ -60,12 +90,10 @@ class PointViewSet(
         valid_ids = []
         invalid_ids_format = []
         for point_id_raw in ids_to_delete_raw:
-            # ID точек теперь строки и могут содержать буквы, поэтому приводим к строке и убираем пробелы
-            # Также приводим к верхнему регистру, если ID в БД хранятся так (модель Point.id)
             id_str = str(point_id_raw).strip().upper() 
-            if id_str: # Проверяем, что строка не пустая после strip
+            if id_str:
                 valid_ids.append(id_str)
-            elif point_id_raw is not None : # Если исходное значение не None, но стало пустым после strip
+            elif point_id_raw is not None :
                 invalid_ids_format.append(str(point_id_raw))
         
         if invalid_ids_format:
@@ -101,30 +129,18 @@ class PointViewSet(
             for nid in ids_not_found:
                 response_data["errors"].append({"id": nid, "error": "Точка не найдена или уже была удалена."})
 
-              
         return Response(response_data, status=status.HTTP_200_OK)
 
 
-# --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
-class StationDirectoryNameViewSet(viewsets.ModelViewSet): # ModelViewSet уже включает все CRUD mixins
-    """
-    ViewSet для CRUD-операций со справочником имен станций.
-    ModelViewSet предоставляет 'list', 'create', 'retrieve', 'update', 
-    'partial_update', и 'destroy' actions.
-    """
+class StationDirectoryNameViewSet(viewsets.ModelViewSet):
     queryset = StationDirectoryName.objects.all().order_by('name')
     serializer_class = StationDirectoryNameSerializer
 
     def perform_create(self, serializer):
-        # print(f"[StationDirectoryNameViewSet] Создание записи: {serializer.validated_data.get('name')}")
         serializer.save()
 
     def perform_update(self, serializer):
-        # print(f"[StationDirectoryNameViewSet] Обновление ID {serializer.instance.id}: {serializer.validated_data.get('name')}")
         serializer.save()
 
     def perform_destroy(self, instance):
-        # print(f"[StationDirectoryNameViewSet] Удаление ID {instance.id}: {instance.name}")
         instance.delete()
-
-    # Убрали action 'clear_all_names', так как он был не нужен

@@ -1,4 +1,3 @@
-<!-- client/src/components/FileUploadForm.vue -->
 <template>
   <div class="file-upload-section card shadow-sm">
     <div class="card-body">
@@ -40,20 +39,30 @@
 </template>
 
 <script setup>
-import { ref, getCurrentInstance } from 'vue'; // defineEmits не нужно импортировать
+import { ref, getCurrentInstance, defineProps } from 'vue';
+
+// --- ПРИНИМАЕМ PROP ОТ App.vue ---
+const props = defineProps({
+    apiUploadUrl: {
+        type: String,
+        required: true
+    }
+});
 
 const fileInput = ref(null);
-const selectedFiles = ref([]); // Массив для хранения выбранных файлов
+const selectedFiles = ref([]);
 const isUploading = ref(false);
 
 const instance = getCurrentInstance();
 const $axios = instance.appContext.config.globalProperties.$axios;
-const $djangoSettings = instance.appContext.config.globalProperties.$djangoSettings;
+
+// --- УДАЛЯЕМ СТАРЫЙ СПОСОБ ПОЛУЧЕНИЯ НАСТРОЕК ---
+// const $djangoSettings = instance.appContext.config.globalProperties.$djangoSettings;
 
 const emit = defineEmits(['upload-complete', 'upload-message']);
 
 const onFileSelected = (event) => {
-  selectedFiles.value = Array.from(event.target.files); // Преобразуем FileList в массив
+  selectedFiles.value = Array.from(event.target.files);
 };
 
 const handleFileUpload = async () => {
@@ -66,17 +75,16 @@ const handleFileUpload = async () => {
 
   const formData = new FormData();
   selectedFiles.value.forEach(file => {
-    formData.append('rinex_files', file); // Используем 'rinex_files' (plural) как ключ
+    formData.append('rinex_files', file);
   });
 
   try {
-    // $djangoSettings.apiUploadUrl должен быть определен и доступен
-    const response = await $axios.post($djangoSettings.apiUploadUrl, formData, {
+    // --- ИСПОЛЬЗУЕМ URL ИЗ PROPS ---
+    const response = await $axios.post(props.apiUploadUrl, formData, {
         headers: {
-            'Content-Type': 'multipart/form-data' // Явно указываем, хотя Axios обычно делает это сам для FormData
+            'Content-Type': 'multipart/form-data'
         }
     });
-    // response.data должен быть {success: bool, messages: [], total_created_count: int}
     emit('upload-complete', response.data); 
   } catch (error) {
     console.error('Ошибка загрузки файла(ов):', error);
@@ -87,44 +95,35 @@ const handleFileUpload = async () => {
                 errorMessage = error.response.data.detail;
             } else if (typeof error.response.data.message === 'string') {
                 errorMessage = error.response.data.message;
-            } else if (typeof error.response.data === 'string') {
-                 errorMessage = error.response.data;
-            } else if (error.response.data.errors && typeof error.response.data.errors === 'object') {
-                // Попытка извлечь ошибки валидации DRF
-                const fieldErrors = Object.values(error.response.data.errors).flat().join(' ');
-                if (fieldErrors) errorMessage = fieldErrors;
-            } else if (Array.isArray(error.response.data) && error.response.data.length > 0 && typeof error.response.data[0] === 'string') {
-                // Иногда DRF возвращает массив строк ошибок
-                errorMessage = error.response.data.join(' ');
+            } else if (Array.isArray(error.response.data.errors)) {
+                errorMessage = error.response.data.errors.join(' ');
             }
         } else if (error.response.statusText) {
              errorMessage = `Ошибка сервера: ${error.response.status} ${error.response.statusText}`;
         }
     }
-    // Передаем объект с ошибкой в upload-complete, чтобы App.vue мог его обработать
     emit('upload-complete', { 
         success: false, 
-        message: errorMessage, // Основное сообщение об ошибке
-        messages: [{type: 'danger', text: errorMessage}], // Массив для MessageDisplay
+        message: errorMessage,
+        messages: [{type: 'danger', text: errorMessage}],
         total_created_count: 0 
     });
   } finally {
     isUploading.value = false;
-    // Очищаем input после загрузки (или ошибки)
     if (fileInput.value) {
-      fileInput.value.value = ''; // Это стандартный способ очистки <input type="file">
+      fileInput.value.value = '';
     }
-    selectedFiles.value = []; // Очищаем массив выбранных файлов в состоянии компонента
+    selectedFiles.value = [];
   }
 };
 </script>
 
 <style scoped>
 .file-upload-section .card-body {
-  padding: 1rem; /* Немного уменьшим внутренние отступы */
+  padding: 1rem;
 }
 .file-upload-section .card-title {
-  font-size: 1.1rem; /* Размер заголовка */
+  font-size: 1.1rem;
   font-weight: 500;
 }
 .form-text ul {

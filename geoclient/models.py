@@ -65,9 +65,6 @@ class StationDirectoryName(models.Model):
 
 
 class Point(models.Model):
-    """
-    Модель для хранения информации о геодезических точках.
-    """
     POINT_TYPES = [
         ('ggs', 'Пункты гос. геодезической сети'),
         ('ggs_kurgan', 'Пункты ГГС на курганах'),
@@ -81,66 +78,38 @@ class Point(models.Model):
     id = models.CharField(
         max_length=50,
         primary_key=True, 
-        help_text="Идентификатор точки (обычно MARKER NAME из RINEX файла)",
-        verbose_name="ID точки (Marker Name)"
+        help_text="ID/Имя точки (Marker Name из RINEX или Имя пункта из каталога)",
+        verbose_name="ID/Имя точки"
     )
     station_name = models.CharField(
         max_length=255, 
         blank=True, 
         null=True, 
-        help_text="Присвоенное пользователем имя станции/пункта",
         verbose_name="Присвоенное имя станции"
     )
-    location = gis_models.PointField(
-        srid=4326,
-        help_text="Географические координаты точки (долгота, широта в WGS84)",
-        verbose_name="Местоположение"
-    )
-    timestamp = models.DateTimeField(
-        null=True, 
-        blank=True, 
-        help_text="Время наблюдения или создания записи",
-        verbose_name="Время наблюдения"
-    )
-    description = models.TextField(
-        blank=True, 
-        null=True, 
-        help_text="Дополнительное описание или комментарии к точке",
-        verbose_name="Описание"
-    )
-    point_type = models.CharField(
-        max_length=20,
-        choices=POINT_TYPES,
-        default='default',
-        help_text="Тип геодезического пункта или точки",
-        verbose_name="Тип точки"
-    )
+    location = gis_models.PointField(srid=4326, verbose_name="Местоположение")
+    timestamp = models.DateTimeField(null=True, blank=True, verbose_name="Время наблюдения")
+    description = models.TextField(blank=True, null=True, verbose_name="Описание")
+    point_type = models.CharField(max_length=20, choices=POINT_TYPES, default='default', verbose_name="Тип точки")
     source_file = models.ForeignKey(
-        UploadedRinexFile,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='points',
-        verbose_name="Исходный RINEX файл"
+        UploadedRinexFile, on_delete=models.SET_NULL, null=True, blank=True, related_name='points', verbose_name="Исходный RINEX файл"
     )
     raw_x = models.FloatField(null=True, blank=True, help_text="Исходная координата X (ECEF из RINEX)")
     raw_y = models.FloatField(null=True, blank=True, help_text="Исходная координата Y (ECEF из RINEX)")
     raw_z = models.FloatField(null=True, blank=True, help_text="Исходная координата Z (ECEF из RINEX)")
-    receiver_number = models.CharField(
-        max_length=100, 
-        blank=True, 
-        null=True, 
-        help_text="Номер приемника (REC # из RINEX)",
-        verbose_name="Номер приемника"
-    )
-    antenna_height = models.FloatField(
-        null=True, 
-        blank=True, 
-        help_text="Измеренная высота антенны (компонента H из ANTENNA: DELTA H/E/N в RINEX, в метрах)",
-        verbose_name="Высота антенны (H)"
-    )
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания записи точки")
-    updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления записи точки")
+    receiver_number = models.CharField(max_length=100, blank=True, null=True, verbose_name="Номер приемника")
+    antenna_height = models.FloatField(null=True, blank=True, help_text="Высота антенны (H) из RINEX, в метрах", verbose_name="Высота антенны (H)")
+    
+    # --- НОВЫЕ ПОЛЯ ДЛЯ ИНТЕГРАЦИИ С GEOEYE ---
+    network_class = models.CharField(max_length=255, blank=True, null=True, verbose_name="Класс сети")
+    index_name = models.CharField(max_length=100, blank=True, null=True, verbose_name="Индекс (номенклатура)")
+    center_type = models.CharField(max_length=100, blank=True, null=True, verbose_name="Тип центра")
+    status = models.CharField(max_length=100, blank=True, null=True, verbose_name="Статус")
+    mark_number = models.CharField(max_length=100, blank=True, null=True, verbose_name="Номер марки")
+    # --- КОНЕЦ НОВЫХ ПОЛЕЙ ---
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания записи")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления записи")
 
     class Meta:
         verbose_name = "Точка на карте"

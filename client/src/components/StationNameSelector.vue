@@ -132,7 +132,7 @@ const applyCustomInput = () => {
 };
 
 const openManageNamesModalToPrefillCurrent = () => {
-    const modalElement = document.getElementById(MANAGE_NAMES_MODAL_ID);
+    const modalElement = document.getElementById(MANAGE_NAMES_MODAL_ID);Ё
     if (modalElement) {
         const bsModal = Modal.getInstance(modalElement) || new Modal(modalElement);
         if (props.modelValue && !isModelValueInOfficialList.value) {

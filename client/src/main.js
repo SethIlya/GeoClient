@@ -3,64 +3,73 @@ import { createApp } from 'vue';
 import App from './App.vue';
 import axios from 'axios';
 
-// Импорт стилей Leaflet (если вы не используете CDN в index.html для Vite)
+// Импортируем стили Leaflet
 import 'leaflet/dist/leaflet.css';
-// Если у вас были глобальные стили в assets/main.css, раскомментируйте:
-// import './assets/main.css'; // Предполагая, что такой файл есть
 
-const app = createApp(App);
-
-// --- Начало Настройки Axios и CSRF ---
-// Обеспечиваем, что $djangoSettings всегда объект
-// Это нужно сделать до того, как мы пытаемся использовать djangoSettings в initializeCsrfToken
-app.config.globalProperties.$djangoSettings = window.DJANGO_SETTINGS || {
-    csrfToken: null, // По умолчанию null, если не передано
+// --- НАДЕЖНОЕ ПОЛУЧЕНИЕ НАСТРОЕК ИЗ ШАБЛОНА ---
+// Мы получаем настройки один раз и сохраняем в константу.
+// Это избавляет от проблем с порядком инициализации.
+const djangoSettings = window.djangoSettings || {
+    // Предоставляем запасные значения на случай, если что-то пойдет не так
+    csrfToken: null,
     apiPointsUrl: "/api/points/",
     apiUploadUrl: "/api/upload-rinex/",
-    apiCsrfUrl: "/api/get-csrf-token/" // Запасной URL, если не передан из Django
+    apiKmlUploadUrl: "/api/upload-kml/",
+    apiStationNamesUrl: "/api/station-names/",
+    apiCsrfUrl: "/api/get-csrf-token/"
 };
 
-// Функция для получения и установки CSRF токена
-async function initializeCsrfToken() {
-  
-    const djangoSettings = app.config.globalProperties.$djangoSettings;
-    if (djangoSettings.csrfToken) { // Токен из Django-шаблона
-        axios.defaults.headers.common['X-CSRFToken'] = djangoSettings.csrfToken;
-        console.log("CSRF token set from initial DJANGO_SETTINGS:", djangoSettings.csrfToken);
-    } else if (djangoSettings.apiCsrfUrl) {
-        // Если начальный токен не предоставлен, запросим его
+// --- СОЗДАНИЕ ПРИЛОЖЕНИЯ С ПЕРЕДАЧЕЙ НАСТРОЕК ЧЕРЕЗ PROPS ---
+// Это самый надежный способ передать данные в корневой компонент.
+const app = createApp(App, {
+    djangoSettings: djangoSettings
+});
+
+// --- НАСТРОЙКА AXIOS ---
+// Функция для настройки Axios. Мы вызовем ее после получения CSRF-токена.
+function setupAxios(csrfToken) {
+    axios.defaults.headers.common['X-CSRFToken'] = csrfToken;
+    console.log("Axios configured with CSRF token:", csrfToken);
+    
+    // Делаем настроенный экземпляр Axios доступным глобально
+    app.config.globalProperties.$axios = axios;
+}
+
+// --- ИНИЦИАЛИЗАЦИЯ CSRF-ТОКЕНА ---
+// Эта логика остается похожей на вашу, но использует константу djangoSettings
+async function initializeCsrfTokenAndMountApp() {
+    let finalCsrfToken = djangoSettings.csrfToken;
+
+    if (finalCsrfToken) {
+        // Если токен уже есть из шаблона, используем его
+        console.log("CSRF token found in initial djangoSettings.");
+    } else {
+        // Если токена нет, запрашиваем его с сервера
         try {
-            console.log("Initial CSRF token not found, fetching from API:", djangoSettings.apiCsrfUrl);
-            const response = await axios.get(djangoSettings.apiCsrfUrl); // GET-запрос, CSRF-токен для него не нужен
+            console.log("Initial CSRF token not found, fetching from API...");
+            const response = await axios.get(djangoSettings.apiCsrfUrl);
             if (response.data && response.data.csrfToken) {
-                const fetchedToken = response.data.csrfToken;
-                axios.defaults.headers.common['X-CSRFToken'] = fetchedToken;
-                // Обновляем значение в нашем глобальном объекте $djangoSettings
-                djangoSettings.csrfToken = fetchedToken;
-                console.log("CSRF token fetched and set from API:", fetchedToken);
+                finalCsrfToken = response.data.csrfToken;
+                console.log("CSRF token fetched successfully from API.");
             } else {
-                console.error("Failed to get CSRF token from API: Invalid response format.", response.data);
+                console.error("Failed to get CSRF token from API: Invalid response format.");
             }
         } catch (error) {
             console.error("Error fetching CSRF token from API:", error);
         }
-    } else {
-        console.warn("CSRF token not available and no API URL to fetch it.");
     }
+
+    if (finalCsrfToken) {
+        setupAxios(finalCsrfToken);
+    } else {
+        console.warn("CSRF token is not available. POST/PATCH/DELETE requests might fail.");
+        // Все равно делаем Axios доступным, чтобы GET-запросы работали
+        app.config.globalProperties.$axios = axios;
+    }
+
+    // Монтируем приложение только после завершения всех асинхронных операций
+    app.mount('#app');
 }
 
-// Axios будет доступен глобально после инициализации CSRF
-app.config.globalProperties.$axios = axios;
-// --- Конец Настройки Axios и CSRF ---
-
-
-// Вызываем инициализацию CSRF токена перед монтированием приложения
-// и монтируем приложение только после завершения (успешного или нет) этой асинхронной операции.
-initializeCsrfToken().then(() => {
-    app.mount('#app');
-}).catch(error => {
-    // Обработка критической ошибки при инициализации, если необходимо
-    console.error("Critical error during CSRF token initialization, app might not work correctly:", error);
-    // Можно все равно смонтировать приложение, но с предупреждением
-    app.mount('#app');
-});
+// Запускаем весь процесс
+initializeCsrfTokenAndMountApp();

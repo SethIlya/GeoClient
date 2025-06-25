@@ -13,39 +13,34 @@
           integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" 
           crossorigin="anonymous">
     <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
     <!-- 
-      Пути к собранным CSS и JS файлам Vue.
-      Эти пути зависят от вашей настройки Vite (build.outDir, assetsDir, rollupOptions.output)
-      и от вашей настройки Django STATICFILES_DIRS.
-
-      Предполагаем, что:
-      1. STATICFILES_DIRS в settings.py указывает на 'client/dist' относительно корня Django-проекта.
-         STATICFILES_DIRS = [os.path.join(BASE_DIR, 'client', 'dist')]
-      2. vite.config.js собирает файлы в client/dist/assets/
-         - build.outDir: path.resolve(__dirname, 'dist') // (внутри папки client)
-         - build.assetsDir: 'assets'
-         - rollupOptions.output.entryFileNames: `[name].js` (или `[name].[hash].js`)
-         - rollupOptions.output.assetFileNames: `[name].[ext]` (или `[name].[hash].[ext]`)
-           (для CSS, если он называется не main/index, нужно убедиться, что имя здесь будет index.css или style.css)
+      Путь к вашему скомпилированному CSS-файлу.
+      Имя файла (например, 'assets/index.css' или 'assets/style.css')
+      зависит от настроек сборки в vite.config.js
     -->
-    <link rel="stylesheet" href="{% static 'assets/index.css' %}"> <!-- ИЛИ style.css, main.css - зависит от сборки Vite -->
+    <link rel="stylesheet" href="{% static 'assets/index.css' %}">
 
     <script>
-      // Передаем настройки из Django в JavaScript
-      window.DJANGO_SETTINGS = {
-        // CSRF-токен, полученный из Django при рендеринге этой страницы
-        // Он будет использован Axios для первого набора запросов.
-        csrfToken: "{{ csrf_token }}", 
+      // --- ИСПРАВЛЕННЫЙ БЛОК НАСТРОЕК ---
+      // Передаем все необходимые URL и CSRF-токен из Django в глобальный объект window.
+      // Vue-приложение будет использовать этот объект для всех API-запросов.
+      window.djangoSettings = {
+        // CSRF-токен для Axios
+        csrfToken: "{{ csrf_token|escapejs }}", 
         
-        // URL-адреса для API
-        apiPointsUrl: "{{ api_points_url|default:'/api/points/' }}",
-        apiUploadUrl: "{{ api_upload_url|default:'/api/upload-rinex/' }}",
-        apiCsrfUrl: "{{ api_csrf_url|default:'/api/get-csrf-token/' }}" // URL для запроса нового CSRF-токена, если потребуется
+        // URL-адреса для API, обернутые в escapejs для безопасности
+        apiPointsUrl: "{{ api_points_url|escapejs }}",
+        apiUploadUrl: "{{ api_upload_url|escapejs }}",
+        apiKmlUploadUrl: "{{ api_kml_upload_url|escapejs }}", // <-- Добавленный URL
+        apiStationNamesUrl: "{{ api_station_names_url|escapejs }}", // <-- Добавленный URL
+        apiCsrfUrl: "{{ api_csrf_url|escapejs }}"
       };
+
       // Для отладки: выводим настройки в консоль браузера
-      console.log("DJANGO_SETTINGS from template:", JSON.parse(JSON.stringify(window.DJANGO_SETTINGS)));
+      console.log("Django Settings from template:", JSON.parse(JSON.stringify(window.djangoSettings)));
+      // --- КОНЕЦ ИСПРАВЛЕНИЙ ---
     </script>
 </head>
 <body>
@@ -53,20 +48,19 @@
       <strong>JavaScript необходим для работы этого приложения. Пожалуйста, включите его в настройках вашего браузера.</strong>
     </noscript>
     
-    <!-- Для теста установки CSRF cookie, можно временно добавить пустую форму.
-         Обычно это не требуется, если django_get_csrf_token вызывается в view.
-    <form method="post" action="." style="display: none;">{% csrf_token %}</form>
-    -->
-
-    <div id="app">Загрузка Vue приложения...</div> <!-- Сюда будет смонтировано Vue-приложение -->
+    <!-- Сюда будет смонтировано Vue-приложение -->
+    <div id="app">Загрузка Vue приложения...</div>
 
     <!-- Bootstrap JS Bundle (включает Popper) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" 
             integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" 
             crossorigin="anonymous"></script>
     
-    <!-- Главный JS-файл вашего Vue-приложения -->
-    <!-- Имя файла (index.js, main.js) зависит от конфигурации Vite (entry point) -->
-    <script type="module" src="{% static 'assets/index.js' %}"></script> <!-- ИЛИ main.js -->
+    <!-- 
+      Главный JS-файл вашего Vue-приложения.
+      Имя файла (например, 'assets/index.js' или 'assets/main.js')
+      зависит от конфигурации Vite (входная точка).
+    -->
+    <script type="module" src="{% static 'assets/index.js' %}"></script>
 </body>
 </html>
