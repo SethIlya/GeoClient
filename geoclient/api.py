@@ -3,8 +3,8 @@ from rest_framework import viewsets, mixins, status
 from rest_framework.response import Response
 from rest_framework_gis import filters as gis_filters 
 from rest_framework.decorators import action 
-from .models import Point, StationDirectoryName 
-from .serializers import PointSerializer, StationDirectoryNameSerializer
+from .models import GeodeticPoint, StationDirectoryName 
+from .serializers import GeodeticPointSerializer, StationDirectoryNameSerializer
 import traceback
 
 # --- НОВЫЕ ИМПОРТЫ ---
@@ -19,8 +19,8 @@ class PointViewSet(
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet  
 ):
-    queryset = Point.objects.all().order_by('id')
-    serializer_class = PointSerializer
+    queryset = GeodeticPoint.objects.all().order_by('id')
+    serializer_class = GeodeticPointSerializer
     lookup_field = 'id' 
     bbox_filter_field = 'location'
     # filter_backends = (gis_filters.InBBoxFilter,)

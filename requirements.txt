@@ -1,1 +1,17 @@
+# Django & DRF
 django
+djangorestframework
+djangorestframework-gis
+pyproj
+
+# Database
+psycopg2-binary
+
+# WSGI Server
+gunicorn
+
+# Static Files
+whitenoise[brotli]
+
+# CORS
+django-cors-headers

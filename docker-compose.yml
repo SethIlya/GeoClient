@@ -1,0 +1,57 @@
+# docker-compose.yml
+
+# Директиву 'version' можно убрать, в новых версиях она не обязательна.
+services:
+  # Сервис базы данных PostGIS
+  db:
+    image: postgis/postgis:14-3.3
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=praktika
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=mysecretpassword # На сервере обязательно замените!
+    restart: unless-stopped
+
+  # Сервис вашего Django-приложения
+  web:
+    build: .
+    command: gunicorn app.wsgi:application --bind 0.0.0.0:8000
+    
+    # --- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ ЗДЕСЬ ---
+    volumes:
+      # Связываем папку с исходным кодом проекта на вашем ПК
+      # с рабочей папкой /app внутри контейнера.
+      # Теперь любые изменения в коде мгновенно отразятся в контейнере.
+      - .:/app
+      
+      # Эти тома для хранения статики и медиа остаются без изменений.
+      - staticfiles:/app/staticfiles
+      - mediafiles:/app/mediafiles
+    # --- КОНЕЦ ИЗМЕНЕНИЯ ---
+    
+    ports:
+      - "8000:8000"
+      
+    environment:
+      - SECRET_KEY=замени_меня_на_очень_длинный_и_сложный_ключ
+      - DEBUG=0 # В продакшене всегда 0
+      - ALLOWED_HOSTS=127.0.0.1,localhost
+      - DB_NAME=praktika
+      - DB_USER=postgres
+      - DB_PASSWORD=mysecretpassword
+      - DB_HOST=db
+      - DB_PORT=5432
+      # Настройки для CORS/CSRF
+      - CORS_ALLOWED_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
+      - CSRF_TRUSTED_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
+      
+    depends_on:
+      - db
+    restart: unless-stopped
+
+# Определяем "тома" (named volumes) для постоянного хранения данных
+volumes:
+  postgres_data:
+  staticfiles:
+  mediafiles:

@@ -1,33 +1,52 @@
 # geoclient/models.py
+
 from django.contrib.gis.db import models as gis_models
 from django.db import models
-from datetime import datetime # Убедимся, что datetime импортирован, если используется в методах
+from datetime import datetime
 
 class UploadedRinexFile(models.Model):
     """
     Модель для хранения информации о загруженных RINEX файлах.
     """
     file = models.FileField(
-        upload_to='rinex_files/', 
+        upload_to='rinex_files/',
         verbose_name="Файл"
     )
+    file_hash = models.CharField(
+        max_length=64, # Длина для хэша SHA-256
+        unique=True,
+        db_index=True,
+        blank=True,
+        null=True,
+        help_text="Хэш-сумма SHA-256 содержимого файла для определения дубликатов."
+    )
     uploaded_at = models.DateTimeField(
-        auto_now_add=True, 
+        auto_now_add=True,
         verbose_name="Время загрузки"
-    ) 
+    )
     file_type = models.CharField(
-        max_length=10, 
-        blank=True, 
-        null=True, 
+        max_length=10,
+        blank=True,
+        null=True,
         help_text="Тип файла (o, n, g, и т.д.)",
         verbose_name="Тип файла"
     )
     remarks = models.TextField(
-        blank=True, 
-        null=True, 
+        blank=True,
+        null=True,
         help_text="Заметки или комментарии по файлу",
         verbose_name="Заметки"
     )
+
+    def delete(self, *args, **kwargs):
+        """
+        Переопределяем стандартный метод delete.
+        Сначала удаляем связанный файл с диска, затем саму запись в БД.
+        """
+        if self.file:
+            self.file.delete(save=False)
+        
+        super().delete(*args, **kwargs)
 
     def __str__(self):
         uploaded_at_str = self.uploaded_at.strftime('%Y-%m-%d %H:%M') if self.uploaded_at else "N/A"
@@ -43,10 +62,9 @@ class UploadedRinexFile(models.Model):
 class StationDirectoryName(models.Model):
     """
     Модель для хранения записей справочника имен станций.
-    Эти имена пользователь может выбирать и присваивать точкам.
     """
     name = models.CharField(
-        max_length=255, 
+        max_length=255,
         unique=True,
         db_index=True,
         help_text="Уникальное имя станции из справочника (например, Вахим, База_1)",
@@ -64,7 +82,10 @@ class StationDirectoryName(models.Model):
         return self.name
 
 
-class Point(models.Model):
+class GeodeticPoint(models.Model):
+    """
+    Модель, представляющая физический геодезический пункт на местности.
+    """
     POINT_TYPES = [
         ('ggs', 'Пункты гос. геодезической сети'),
         ('ggs_kurgan', 'Пункты ГГС на курганах'),
@@ -77,59 +98,57 @@ class Point(models.Model):
 
     id = models.CharField(
         max_length=50,
-        primary_key=True, 
-        help_text="ID/Имя точки (Marker Name из RINEX или Имя пункта из каталога)",
-        verbose_name="ID/Имя точки"
+        primary_key=True,
+        help_text="Уникальный ID пункта (Marker Name из RINEX)",
+        verbose_name="ID пункта"
     )
-    station_name = models.CharField(
-        max_length=255, 
-        blank=True, 
-        null=True, 
-        verbose_name="Присвоенное имя станции"
-    )
-    location = gis_models.PointField(srid=4326, verbose_name="Местоположение")
-    timestamp = models.DateTimeField(null=True, blank=True, verbose_name="Время наблюдения")
+    station_name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Присвоенное имя станции")
+    location = gis_models.PointField(srid=4326, verbose_name="Актуальное местоположение")
     description = models.TextField(blank=True, null=True, verbose_name="Описание")
     point_type = models.CharField(max_length=20, choices=POINT_TYPES, default='default', verbose_name="Тип точки")
-    source_file = models.ForeignKey(
-        UploadedRinexFile, on_delete=models.SET_NULL, null=True, blank=True, related_name='points', verbose_name="Исходный RINEX файл"
-    )
-    raw_x = models.FloatField(null=True, blank=True, help_text="Исходная координата X (ECEF из RINEX)")
-    raw_y = models.FloatField(null=True, blank=True, help_text="Исходная координата Y (ECEF из RINEX)")
-    raw_z = models.FloatField(null=True, blank=True, help_text="Исходная координата Z (ECEF из RINEX)")
-    receiver_number = models.CharField(max_length=100, blank=True, null=True, verbose_name="Номер приемника")
-    antenna_height = models.FloatField(null=True, blank=True, help_text="Высота антенны (H) из RINEX, в метрах", verbose_name="Высота антенны (H)")
-    
-    # --- НОВЫЕ ПОЛЯ ДЛЯ ИНТЕГРАЦИИ С GEOEYE ---
     network_class = models.CharField(max_length=255, blank=True, null=True, verbose_name="Класс сети")
     index_name = models.CharField(max_length=100, blank=True, null=True, verbose_name="Индекс (номенклатура)")
     center_type = models.CharField(max_length=100, blank=True, null=True, verbose_name="Тип центра")
     status = models.CharField(max_length=100, blank=True, null=True, verbose_name="Статус")
     mark_number = models.CharField(max_length=100, blank=True, null=True, verbose_name="Номер марки")
-    # --- КОНЕЦ НОВЫХ ПОЛЕЙ ---
-
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания записи")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления записи")
 
     class Meta:
-        verbose_name = "Точка на карте"
-        verbose_name_plural = "Точки на карте"
-        indexes = [
-            gis_models.Index(fields=['location'], name='location_idx'),
-            models.Index(fields=['timestamp'], name='timestamp_idx'),
-            models.Index(fields=['station_name'], name='station_name_idx'),
-        ]
+        verbose_name = "Геодезический пункт"
+        verbose_name_plural = "Геодезические пункты"
+        indexes = [gis_models.Index(fields=['location'], name='geopoint_location_idx')]
         ordering = ['id']
 
     def __str__(self):
-        type_display = self.get_point_type_display()
         display_identifier = self.station_name if self.station_name else self.id
-        return f"{display_identifier} (ID: {self.id}, Тип: {type_display})"
+        return f"Пункт: {display_identifier} (ID: {self.id})"
 
-    @property
-    def latitude(self):
-        return self.location.y if self.location else None
 
-    @property
-    def longitude(self):
-        return self.location.x if self.location else None
+class Observation(models.Model):
+    """
+    Модель, представляющая одно конкретное измерение/наблюдение.
+    """
+    id = models.BigAutoField(primary_key=True)
+    point = models.ForeignKey(GeodeticPoint, on_delete=models.CASCADE, related_name='observations', verbose_name="Геодезический пункт")
+    location = gis_models.PointField(srid=4326, verbose_name="Местоположение наблюдения")
+    timestamp = models.DateTimeField(verbose_name="Время наблюдения (первого)")
+    source_file = models.ForeignKey(UploadedRinexFile, on_delete=models.SET_NULL, null=True, blank=True, related_name='observations', verbose_name="Исходный RINEX файл")
+    
+    # --- ИЗМЕНЕНИЕ: Добавляем поле для длительности ---
+    duration = models.DurationField(null=True, blank=True, verbose_name="Длительность наблюдения")
+    
+    raw_x = models.FloatField(null=True, blank=True, help_text="Исходная координата X (ECEF из RINEX)")
+    raw_y = models.FloatField(null=True, blank=True, help_text="Исходная координата Y (ECEF из RINEX)")
+    raw_z = models.FloatField(null=True, blank=True, help_text="Исходная координата Z (ECEF из RINEX)")
+    receiver_number = models.CharField(max_length=100, blank=True, null=True, verbose_name="Номер приемника")
+    antenna_height = models.FloatField(null=True, blank=True, help_text="Высота антенны (H) из RINEX", verbose_name="Высота антенны (H)")
+    
+    class Meta:
+        verbose_name = "Наблюдение"
+        verbose_name_plural = "Наблюдения"
+        unique_together = ('point', 'timestamp')
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"Наблюдение для {self.point.id} в {self.timestamp.strftime('%Y-%m-%d %H:%M')}"

@@ -39,15 +39,17 @@ const renderedMarkers = new Map();
 
 const pointTypeToText = (value) => {
     const types = {
-        'ggs': 'Пункты гос. геодезической сети', 'ggs_kurgan': 'Пункты ГГС на курганах',
-        'survey': 'Точки съемочной сети', 'survey_kurgan': 'Точки съемочной сети на курганах',
-        'astro': 'Астрономические пункты', 'leveling': 'Нивелирные марки/реперы',
+        'ggs': 'Пункты гос. геодезической сети',
+        'ggs_kurgan': 'Пункты ГГС на курганах',
+        'survey': 'Точки съемочной сети',
+        'survey_kurgan': 'Точки съемочной сети на курганах',
+        'astro': 'Астрономический пункт/Высокоточная сеть',
+        'leveling': 'Нивелирная марка/ГНСС',
         'default': 'Неопределенный тип',
     };
     return types[value] || 'N/A';
 };
 
-// --- ФУНКЦИЯ С ДОБАВЛЕННЫМИ ИКОНКАМИ ---
 const createCustomIcon = (pointType, isSelected, isActive) => {
     const strokeColor = isSelected ? '#0d6efd' : 'black';
     const activeStrokeColor = '#d63384';
@@ -72,18 +74,14 @@ const createCustomIcon = (pointType, isSelected, isActive) => {
             svgHtml = `<svg width="20" height="20">${surveyRect}${surveyCenterDot}</svg>`;
             if(pointType.includes('kurgan')) divHtml = kurganRaysDiv;
             break;
-        // --- НОВЫЕ БЛОКИ CASE ---
-        case 'astro':
+        case 'astro': // ЗВЕЗДОЧКА для ФАГС, ВГС, СГС-1
              iconSize = [24, 24]; iconAnchor = [12, 12];
-             // Рисуем звезду
              svgHtml = `<svg width="24" height="24"><text x="12" y="12" font-size="22" text-anchor="middle" dominant-baseline="central" fill="black">★</text></svg>`;
              break;
-        case 'leveling':
+        case 'leveling': // КРУГ для ГНСС и нивелирных марок
              iconSize = [20, 20]; iconAnchor = [10, 10];
-             // Рисуем круг с перекрестием
              svgHtml = `<svg width="20" height="20"><circle cx="10" cy="10" r="9" /><path d="M5,5 L15,15 M15,5 L5,15" stroke-width="1.5" /></svg>`;
              break;
-        // --- КОНЕЦ НОВЫХ БЛОКОВ ---
         default:
              iconSize = [22, 22]; iconAnchor = [11, 11];
              svgHtml = `<svg width="22" height="22"><circle cx="11" cy="11" r="10" /><text x="11" y="11" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="bold" fill="#555">?</text></svg>`;
@@ -104,19 +102,28 @@ const createOrUpdateMarker = (feature) => {
     const isActive = props.activePointId === pointId;
     const icon = createCustomIcon(properties.point_type, isSelected, isActive);
     
-    let popupHtml = `<div class="leaflet-popup-bootstrap"><h6 class="mb-1 text-primary">${properties.station_name || 'None'}</h6><small class="text-muted">ID: ${properties.id} | Тип: ${pointTypeToText(properties.point_type)}</small><hr class="my-1">`;
-    if (properties.network_class) popupHtml += `<p class="mb-1 small"><strong>Класс:</strong> ${properties.network_class}</p>`;
-    if (properties.index_name) popupHtml += `<p class="mb-1 small"><strong>Индекс:</strong> ${properties.index_name}</p>`;
-    if (properties.center_type) popupHtml += `<p class="mb-1 small"><strong>Тип центра:</strong> ${properties.center_type}</p>`;
-    if (properties.mark_number) popupHtml += `<p class="mb-1 small"><strong>Номер марки:</strong> ${properties.mark_number}</p>`;
-    if (properties.status) popupHtml += `<p class="mb-1 small"><strong>Статус:</strong> ${properties.status}</p>`;
+    let popupHtml = `<div class="leaflet-popup-bootstrap"><h6 class="mb-1 text-primary">${properties.station_name || properties.id}</h6><small class="text-muted">ID: ${properties.id} | Тип: ${pointTypeToText(properties.point_type)}</small>`;
+    const observationCount = properties.observations?.length || 0;
+    popupHtml += `<p class="mb-0 mt-1 small"><strong>Кол-во наблюдений:</strong> ${observationCount}</p>`;
+    popupHtml += `<hr class="my-1">`;
+    const kml_data = {"Класс": properties.network_class, "Индекс": properties.index_name, "Тип центра": properties.center_type, "Номер марки": properties.mark_number, "Статус": properties.status,};
+    for (const [key, value] of Object.entries(kml_data)) {
+        popupHtml += `<p class="mb-1 small"><strong>${key}:</strong> ${value || '<span class="text-muted">Нет данных</span>'}</p>`;
+    }
     popupHtml += `<p class="mb-1"><strong>Координаты:</strong><br><span class="font-monospace">${latitude.toFixed(6)}, ${longitude.toFixed(6)}</span></p>`;
-    if (properties.timestamp_display) popupHtml += `<p class="mb-1"><strong>Время:</strong><br>${properties.timestamp_display}</p>`;
+    if (properties.latest_observation_data?.timestamp_display) {
+      popupHtml += `<p class="mb-1"><strong>Последнее наблюдение:</strong><br>${properties.latest_observation_data.timestamp_display}</p>`;
+    }
+    popupHtml += `</div>`;
 
     if (renderedMarkers.has(pointId)) {
         const marker = renderedMarkers.get(pointId);
         marker.setIcon(icon);
         marker.setPopupContent(popupHtml);
+        const currentLatLng = marker.getLatLng();
+        if (currentLatLng.lat !== latitude || currentLatLng.lng !== longitude) {
+            marker.setLatLng([latitude, longitude]);
+        }
     } else {
         const marker = L.marker([latitude, longitude], { icon, pointId });
         marker.bindPopup(popupHtml, { minWidth: 240 });
@@ -162,10 +169,7 @@ const toggleSelectionMode = () => {
     } else {
         L.DomUtil.removeClass(mapContainer, 'selection-cursor');
         mapInstance.dragging.enable();
-        if (tempRect) {
-            mapInstance.removeLayer(tempRect);
-            tempRect = null;
-        }
+        if (tempRect) { mapInstance.removeLayer(tempRect); tempRect = null; }
         startPos = null;
     }
 };
@@ -234,7 +238,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style>
-/* ... Стили остаются без изменений ... */
 .custom-leaflet-icon-container { background-color: transparent !important; border: none !important; }
 .icon-wrapper { position: relative; stroke: var(--stroke-color, black); stroke-width: var(--stroke-width, 1.5); fill: white; }
 .icon-wrapper svg { overflow: visible; z-index: 1; position: relative; }

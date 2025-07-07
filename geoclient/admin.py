@@ -1,106 +1,108 @@
 # geoclient/admin.py
+
 from django.contrib.gis import admin
-from .models import Point, UploadedRinexFile, StationDirectoryName
-from django.utils.html import format_html
-from django.urls import reverse
 from django.db.models import Count
+from django.urls import reverse
+from django.utils.html import format_html
 
+# Импортируем ВСЕ ваши модели
+from .models import GeodeticPoint, Observation, UploadedRinexFile, StationDirectoryName
 
-@admin.register(Point)
-class PointAdmin(admin.GISModelAdmin):
-    list_display = (
-        'id',               # CharField, бывшее имя/MARKER NAME
-        'station_name',     # Новое поле
-        'timestamp',
-        'point_type',
-        'source_file_link', # Метод этого класса
-        'latitude',         # @property из модели Point
-        'longitude',        # @property из модели Point
-        'receiver_number',  # Новое поле из модели Point
-        'antenna_height',   # Новое поле из модели Point
-        'updated_at'        # Новое поле из модели Point
-    )
-    search_fields = (
-        'id',
-        'station_name',
-        'description',
-        'receiver_number'
-    )
-    list_filter = (
-        'point_type', 
-        'timestamp', 
-        'source_file', 
-        'updated_at' # Поле из модели Point
-    )
-    gis_widget_kwargs = {
-        'attrs': {
-            'default_zoom': 10,
-            'default_lat': 55.75,
-            'default_lon': 37.61,
-        },
-    }
-    # Поля, отображаемые в форме редактирования/создания в админке
-    fields = (
-        'id', 
-        'station_name', 
-        'location', 
-        'timestamp', 
-        'description', 
-        'point_type', 
-        'source_file', 
-        'raw_x', 'raw_y', 'raw_z', 
-        'receiver_number', 
-        'antenna_height',
-        ('created_at', 'updated_at') # Отображаем даты создания/обновления в одной строке
-    )
+# --- 1. Класс для отображения наблюдений ВНУТРИ карточки точки ---
+# Этот класс будет использоваться как "встраиваемый" в админку GeodeticPoint
+class ObservationInline(admin.TabularInline):
+    """
+    Позволяет просматривать и редактировать наблюдения прямо со страницы 
+    их "родительской" геодезической точки.
+    """
+    model = Observation  # Указываем, с какой моделью работаем
+    extra = 0  # Не показывать пустые формы для добавления новых наблюдений
     
-    # Поля, которые будут только для чтения в форме редактирования
-    # ID (MARKER NAME) генерируется из файла и является PK, не должен меняться.
-    # raw_x, raw_y, raw_z, receiver_number, antenna_height - также из файла.
-    # created_at, updated_at - устанавливаются автоматически Django.
-    readonly_fields_on_edit = ('id', 'raw_x', 'raw_y', 'raw_z', 'receiver_number', 'antenna_height', 'created_at', 'updated_at')
-    readonly_fields_on_add = ('raw_x', 'raw_y', 'raw_z', 'receiver_number', 'antenna_height', 'created_at', 'updated_at') # ID можно задать при создании вручную
+    # Поля, которые будут отображаться в таблице наблюдений
+    fields = ('timestamp', 'location', 'receiver_number', 'antenna_height', 'source_file_link')
+    
+    # Делаем все поля только для чтения, т.к. они создаются из файлов
+    readonly_fields = ('timestamp', 'location', 'receiver_number', 'antenna_height', 'source_file_link')
 
-    def get_readonly_fields(self, request, obj=None):
-        if obj: # При редактировании существующего объекта
-            return self.readonly_fields_on_edit
-        # При создании нового объекта (obj is None)
-        return self.readonly_fields_on_add
-
+    # Создаем кастомное поле со ссылкой на исходный файл
     def source_file_link(self, obj):
         if obj.source_file:
-            # UploadedRinexFile.pk должен быть стандартным auto-increment id
-            link = reverse("admin:geoclient_uploadedrinexfile_change", args=[obj.source_file.pk]) 
-            return format_html('<a href="{}">{}</a>', link, obj.source_file.file.name.split('/')[-1])
-        return "-"
+            link = reverse("admin:geoclient_uploadedrinexfile_change", args=[obj.source_file.pk])
+            # Отображаем только имя файла, а не полный путь
+            filename = obj.source_file.file.name.split('/')[-1]
+            return format_html('<a href="{}">{}</a>', link, filename)
+        return "–"
     source_file_link.short_description = 'Исходный файл'
-    source_file_link.admin_order_field = 'source_file__file' # Позволяет сортировку по имени файла
-
-
-@admin.register(UploadedRinexFile)
-class UploadedRinexFileAdmin(admin.ModelAdmin):
-    list_display = ('file_name_display', 'uploaded_at', 'file_type', 'points_count_display')
-    list_filter = ('uploaded_at', 'file_type')
-    readonly_fields = ('uploaded_at',) # Время загрузки не меняется
-    date_hierarchy = 'uploaded_at' # Удобная навигация по датам
     
+    # Отключаем возможность добавлять/изменять/удалять наблюдения через этот инлайн,
+    # так как они должны создаваться только при загрузке файлов.
+    def has_add_permission(self, request, obj=None):
+        return False
+    def has_change_permission(self, request, obj=None):
+        return False
+    def has_delete_permission(self, request, obj=None):
+        # Можно разрешить удаление, если это необходимо
+        return True
+
+# --- 2. Настройки админки для основной модели GeodeticPoint ---
+@admin.register(GeodeticPoint)
+class GeodeticPointAdmin(admin.GISModelAdmin):
+    """
+    Настройки админ-панели для модели геодезических пунктов.
+    """
+    # Отображаем только те поля, которые реально существуют в модели GeodeticPoint
+    list_display = ('id', 'station_name', 'point_type', 'observation_count', 'updated_at')
+    
+    # Поля для поиска
+    search_fields = ('id', 'station_name', 'description')
+    
+    # Поля для фильтрации
+    list_filter = ('point_type', 'updated_at')
+    
+    # Подключаем наш инлайн, чтобы видеть наблюдения на странице точки
+    inlines = [ObservationInline]
+
+    # Делаем системные поля только для чтения
+    readonly_fields = ('id', 'created_at', 'updated_at')
+
+    # Метод для подсчета и сортировки по количеству наблюдений
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        queryset = queryset.annotate(_points_count=Count('points', distinct=True)) # distinct=True на всякий случай
+        return queryset.annotate(_observation_count=Count('observations'))
+
+    @admin.display(description='Кол-во наблюдений', ordering='_observation_count')
+    def observation_count(self, obj):
+        return obj._observation_count
+
+# --- 3. Настройки админки для модели UploadedRinexFile ---
+@admin.register(UploadedRinexFile)
+class UploadedRinexFileAdmin(admin.ModelAdmin):
+    # В list_display используем поля из самой модели или кастомные методы
+    list_display = ('file_name_display', 'uploaded_at', 'file_type', 'observations_count_display')
+    list_filter = ('uploaded_at', 'file_type')
+    readonly_fields = ('uploaded_at', 'file_hash')
+    date_hierarchy = 'uploaded_at'
+    search_fields = ('file', 'file_hash')
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        # Считаем связанные наблюдения для каждого файла
+        queryset = queryset.annotate(_observations_count=Count('observations', distinct=True))
         return queryset
 
+    # Метод для красивого отображения имени файла
+    @admin.display(description='Имя файла', ordering='file')
     def file_name_display(self, obj):
         if obj.file and hasattr(obj.file, 'name'):
             return obj.file.name.split('/')[-1]
         return "Файл отсутствует"
-    file_name_display.short_description = 'Имя файла'
-    file_name_display.admin_order_field = 'file'
 
-    def points_count_display(self, obj):
-        return obj._points_count
-    points_count_display.short_description = 'Кол-во точек'
-    points_count_display.admin_order_field = '_points_count'
+    # Метод для отображения количества связанных наблюдений
+    @admin.display(description='Кол-во наблюдений', ordering='_observations_count')
+    def observations_count_display(self, obj):
+        return obj._observations_count
 
+# --- 4. Настройки админки для справочника имен ---
 @admin.register(StationDirectoryName)
 class StationDirectoryNameAdmin(admin.ModelAdmin):
     list_display = ('name', 'created_at', 'updated_at')
