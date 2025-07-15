@@ -1,51 +1,47 @@
-# docker-compose.yml
+# ✅ ПРАВИЛЬНАЯ ВЕРСИЯ ДЛЯ TIMEWEB
 
-# Директиву 'version' можно убрать, в новых версиях она не обязательна.
 services:
-  # Сервис базы данных PostGIS
   db:
     image: postgis/postgis:14-3.3
     volumes:
-      - postgres_data:/var/lib/postgresql/data/
+      # Используем постоянное хранилище TimeWeb для данных базы
+      - timeweb.storage:/var/lib/postgresql/data/
     environment:
+      # Эти данные лучше перенести в "Секреты" в панели TimeWeb
       - POSTGRES_DB=praktika
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=mysecretpassword # На сервере обязательно замените!
+      - POSTGRES_PASSWORD=mysecretpassword
     restart: unless-stopped
 
-  # Сервис вашего Django-приложения
   web:
     build: .
     command: gunicorn app.wsgi:application --bind 0.0.0.0:8000
-    
-    # --- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ ЗДЕСЬ ---
     volumes:
-      # Связываем папку с исходным кодом проекта на вашем ПК
-      # с рабочей папкой /app внутри контейнера.
-      # Теперь любые изменения в коде мгновенно отразятся в контейнере.
-      - .:/app
-      
-      # Эти тома для хранения статики и медиа остаются без изменений.
-      - staticfiles:/app/staticfiles
-      - mediafiles:/app/mediafiles
-    # --- КОНЕЦ ИЗМЕНЕНИЯ ---
     
-    ports:
-      - "8000:8000"
-      
+      # Используем постоянное хранилище TimeWeb для статики и медиа
+      # УБЕДИТЕСЬ, ЧТО ВЫ СОЗДАЛИ ХРАНИЛИЩЕ В ПАНЕЛИ TIMEWEB!
+      - timeweb.storage:/app/storage
+    
+    # ❌ Секция 'ports' УДАЛЕНА - она не нужна
+    
     environment:
-      - SECRET_KEY=замени_меня_на_очень_длинный_и_сложный_ключ
-      - DEBUG=0 # В продакшене всегда 0
-      - ALLOWED_HOSTS=127.0.0.1,localhost
+      # ОБЯЗАТЕЛЬНО замените localhost на ваш реальный домен от TimeWeb
+      - ALLOWED_HOSTS=ВАШ_ДОМЕН.tw1.ru
+      - SECRET_KEY=замените_этот_ключ_в_секретах_timeweb
+      - DEBUG=0
       - DB_NAME=praktika
       - DB_USER=postgres
       - DB_PASSWORD=mysecretpassword
       - DB_HOST=db
       - DB_PORT=5432
-      # Настройки для CORS/CSRF
-      - CORS_ALLOWED_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
-      - CSRF_TRUSTED_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
+      # Укажите ваш домен для CORS/CSRF
+      - CORS_ALLOWED_ORIGINS=https://ВАШ_ДОМЕН.tw1.ru
+      - CSRF_TRUSTED_ORIGINS=https://ВАШ_ДОМЕН.tw1.ru
+      # Передаем пути к папкам внутри хранилища
+      - STATIC_ROOT=/app/storage/staticfiles
+      - MEDIA_ROOT=/app/storage/mediafiles
       
     depends_on:
       - db
     restart: unless-stopped
+
