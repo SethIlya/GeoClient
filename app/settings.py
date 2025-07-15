@@ -16,6 +16,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ОСНОВНЫЕ НАСТРОЙКИ (ИЗ ПЕРЕМЕННЫХ ОКРУЖЕНИЯ)
 # ==============================================================================
 
+# Эти настройки у вас уже были сделаны правильно, ничего не меняем
 SECRET_KEY = os.environ.get('SECRET_KEY')
 DEBUG = os.environ.get('DEBUG', '0') == '1'
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
@@ -31,7 +32,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'whitenoise.runserver_nostatic', # Для корректной работы с runserver в режиме DEBUG=True
+    'whitenoise.runserver_nostatic',
     'django.contrib.staticfiles',
     'django.contrib.gis',
 
@@ -84,6 +85,7 @@ WSGI_APPLICATION = 'app.wsgi.application'
 # БАЗА ДАННЫХ (DATABASE)
 # ==============================================================================
 
+# Этот блок у вас также был идеален для продакшена
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
@@ -117,11 +119,12 @@ USE_TZ = True
 # СТАТИЧЕСКИЕ И МЕДИА ФАЙЛЫ
 # ==============================================================================
 
-# Базовый URL для статики. Он ДОЛЖЕН БЫТЬ '/'.
 STATIC_URL = '/static/'
 
-# Папка, куда `collectstatic` собирает всю статику для продакшена.
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+# ✅ ИЗМЕНЕНО: Папка, куда `collectstatic` собирает всю статику для продакшена.
+# Пытается взять путь из переменной окружения 'STATIC_ROOT'. Если ее нет,
+# использует старый путь для локальной разработки.
+STATIC_ROOT = os.environ.get('STATIC_ROOT', BASE_DIR / 'staticfiles')
 
 # Источники статических файлов (откуда `collectstatic` будет их брать).
 STATICFILES_DIRS = [
@@ -130,21 +133,24 @@ STATICFILES_DIRS = [
 
 # Явно указываем WhiteNoise, что корень нашего SPA-приложения (index.html)
 # и все его ассеты (JS, CSS) лежат в этой директории.
-# WhiteNoise будет искать файлы здесь в первую очередь.
 WHITENOISE_ROOT = BASE_DIR / 'client' / 'dist'
 
 # Движок для хранения. Это включает сжатие и кэширование.
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-# Настройки для медиа-файлов остаются без изменений
+# Настройки для медиа-файлов
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'mediafiles'
+
+# ✅ ИЗМЕНЕНО: Путь для загружаемых пользователями медиа-файлов.
+# Точно так же берем путь из переменной окружения 'MEDIA_ROOT' для продакшена.
+MEDIA_ROOT = os.environ.get('MEDIA_ROOT', BASE_DIR / 'mediafiles')
 
 
 # ==============================================================================
 # НАСТРОЙКИ CORS и CSRF
 # ==============================================================================
 
+# Этот блок у вас уже был настроен правильно
 _csrf_trusted_origins_str = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
 CSRF_TRUSTED_ORIGINS = _csrf_trusted_origins_str.split(',') if _csrf_trusted_origins_str else []
 
