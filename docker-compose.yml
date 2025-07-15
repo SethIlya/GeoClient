@@ -49,9 +49,3 @@ services:
     depends_on:
       - db
     restart: unless-stopped
-
-# Определяем "тома" (named volumes) для постоянного хранения данных
-volumes:
-  postgres_data:
-  staticfiles:
-  mediafiles:
