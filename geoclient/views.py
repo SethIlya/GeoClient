@@ -1,3 +1,5 @@
+# geoclient/views.py
+
 from django.views.generic import TemplateView, View
 from django.http import JsonResponse
 from django.middleware.csrf import get_token as django_get_csrf_token
@@ -24,14 +26,15 @@ class VueAppContainerView(TemplateView):
         context = super().get_context_data(**kwargs)
         context['csrf_token'] = django_get_csrf_token(self.request)
         try:
-            context['api_points_url'] = reverse('geodeticpoint-list')
+            # Используем имена из `api_urls.py` и `geoclient.urls`
+            context['api_points_url'] = reverse('point-list')
             context['api_station_names_url'] = reverse('station-name-list')
-            context['api_kml_upload_url'] = reverse('geoclient:api_upload_kml')
-            context['api_upload_url'] = reverse('geoclient:api_upload_rinex')
-            context['api_csrf_url'] = reverse('geoclient:get_csrf_token')
-
+            context['api_kml_upload_url'] = reverse('api_upload_kml')
+            context['api_upload_url'] = reverse('api_upload_rinex')
+            context['api_csrf_url'] = reverse('get_csrf_token')
         except NoReverseMatch as e:
             print(f"ПРЕДУПРЕЖДЕНИЕ (VueAppContainerView): Не удалось получить URL через reverse. Ошибка: {e}")
+            # Запасные пути на всякий случай
             context.setdefault('api_points_url', "/api/points/")
             context.setdefault('api_station_names_url', "/api/station-names/")
             context.setdefault('api_kml_upload_url', "/api/upload-kml/")
@@ -53,27 +56,37 @@ class RinexUploadApiView(View):
             file_name_original = rinex_file_from_request.name
             
             try:
+                # --- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Полностью переработанная логика проверки дубликатов ---
+                
+                # Считываем содержимое файла в память для вычисления хэша
                 rinex_file_from_request.seek(0)
                 file_content_bytes = rinex_file_from_request.read()
                 
+                # Вычисляем хэш
                 sha256_hash = hashlib.sha256(file_content_bytes).hexdigest()
                 
-                text_stream = io.StringIO(file_content_bytes.decode('ascii', errors='ignore'))
-
+                # Ищем существующий файл по хэшу
                 existing_file_record = UploadedRinexFile.objects.filter(file_hash=sha256_hash).first()
-                
-                file_actually_exists = False
-                if existing_file_record and existing_file_record.file:
-                    if default_storage.exists(existing_file_record.file.name):
-                        file_actually_exists = True
-                    else:
-                        print(f"Обнаружена 'сломанная' запись для файла {existing_file_record.file.name}. Удаляю ее.")
-                        existing_file_record.delete()
-                        existing_file_record = None
+                uploaded_file_instance = None
 
-                uploaded_file_instance = existing_file_record
-                
-                if not file_actually_exists:
+                # Проверяем, есть ли запись в БД и существует ли сам файл на диске
+                if existing_file_record and existing_file_record.file and default_storage.exists(existing_file_record.file.name):
+                    # Случай 1: Файл-дубликат найден. Используем существующую запись.
+                    # Новый файл НЕ СОХРАНЯЕТСЯ.
+                    uploaded_file_instance = existing_file_record
+                    aggregated_results_messages.append({
+                        'type': 'info',
+                        'text': f"Файл '{file_name_original}' уже существует в системе. Новый файл не сохраняется. Запускается повторная обработка..."
+                    })
+                else:
+                    # Случай 2: Это новый файл или запись о старом файле "сломана".
+                    
+                    if existing_file_record:
+                        # Если запись была, но файла на диске нет - удаляем "сломанную" запись
+                        print(f"Обнаружена 'сломанная' запись для файла (хэш {sha256_hash}). Запись удаляется.")
+                        existing_file_record.delete()
+
+                    # Определяем тип файла по расширению
                     file_ext_part = os.path.splitext(file_name_original.lower())[1]
                     file_type_char = None
                     if 'o' in file_ext_part or ('.rnx' in file_ext_part and 'O' in file_name_original.upper()): file_type_char = 'o'
@@ -84,18 +97,25 @@ class RinexUploadApiView(View):
                         aggregated_results_messages.append({'type': 'danger', 'text': f"Файл '{file_name_original}': Не удалось определить тип файла."})
                         overall_success_flag = False
                         continue
-
+                    
+                    # Создаем новую запись в БД, что также сохраняет файл на диск
                     uploaded_file_instance = UploadedRinexFile.objects.create(
                         file=rinex_file_from_request, 
                         file_type=file_type_char,
                         file_hash=sha256_hash
                     )
-                else:
                     aggregated_results_messages.append({
-                        'type': 'info',
-                        'text': f"Файл '{file_name_original}' уже существует в системе. Обработка..."
+                        'type': 'success',
+                        'text': f"Новый уникальный файл '{file_name_original}' сохранен и обрабатывается."
                     })
 
+                # --- ОБЩИЙ БЛОК ПАРСИНГА ---
+                # Теперь этот блок работает с `uploaded_file_instance`,
+                # который может быть как старым (для дубликата), так и новым объектом.
+                
+                # Создаем текстовый поток из байтов для парсера
+                text_stream = io.StringIO(file_content_bytes.decode('ascii', errors='ignore'))
+                
                 created_count_this_file, parse_messages_this_file = parse_rinex_obs_file(
                     text_stream, uploaded_file_instance
                 )
@@ -104,7 +124,7 @@ class RinexUploadApiView(View):
                 for msg in parse_messages_this_file:
                     msg_type = 'info'
                     if "ошибка" in str(msg).lower() or "критическая" in str(msg).lower(): msg_type = 'danger'
-                    elif "создана" in str(msg).lower() or "добавлено" in str(msg).lower(): msg_type = 'success'
+                    elif "создан" in str(msg).lower() or "добавлено" in str(msg).lower(): msg_type = 'success'
                     aggregated_results_messages.append({'type': msg_type, 'text': f"Файл '{file_name_original}': {msg}"})
 
             except Exception as e:
@@ -120,6 +140,8 @@ class RinexUploadApiView(View):
             'messages': aggregated_results_messages,
             'total_created_count': total_created_count_all_files
         })
+
+# --- Остальной код файла (KMLUploadApiView и др.) остается без изменений ---
 
 def _parse_kml_description(description_text):
     data = {
@@ -137,19 +159,13 @@ def _parse_kml_description(description_text):
             data[key] = match.group(1).strip()
 
     if data['network_class']:
-        # Нормализуем строку для надежного сравнения
         network_class_normalized = data['network_class'].lower().replace(' ', '').replace('-', '')
-        
-        # Астрономические/Высокоточные пункты (звездочка)
         if any(substr in network_class_normalized for substr in ['вгс', 'фагс', 'сгс1']):
             data['point_type'] = 'astro'
-        # Государственная геодезическая сеть (треугольник)
         elif 'ггс' in network_class_normalized or 'государственнаягеодезическая' in network_class_normalized:
             data['point_type'] = 'ggs'
-        # Городские/Съемочные сети (квадрат)
         elif 'городская' in network_class_normalized:
             data['point_type'] = 'survey'
-        # Нивелирные и ГНСС сети (круг с перекрестием)
         elif any(substr in network_class_normalized for substr in ['гнс', 'нивелирная']):
             data['point_type'] = 'leveling'
     

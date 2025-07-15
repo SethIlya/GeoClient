@@ -13,7 +13,7 @@ import os
 
 transformer_ecef_to_wgs84 = Transformer.from_crs("EPSG:4978", "EPSG:4326", always_xy=True)
 COORDINATE_PRECISION = 6
-POINT_MERGE_RADIUS_METERS = 5.0
+POINT_MERGE_RADIUS_METERS = 7.0
 
 def manual_parse_rinex_header(file_like_object):
     # --- ИЗМЕНЕНИЕ: Добавляем 'time_last_obs_str' в словарь ---

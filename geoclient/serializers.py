@@ -2,29 +2,31 @@
 
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
 from rest_framework import serializers
-from .models import GeodeticPoint, Observation, StationDirectoryName, UploadedRinexFile
+from .models import GeodeticPoint, Observation, StationDirectoryName
 
 class ObservationSerializer(serializers.ModelSerializer):
     """Сериализатор для модели Observation."""
     latitude = serializers.FloatField(source='location.y', read_only=True)
     longitude = serializers.FloatField(source='location.x', read_only=True)
     timestamp_display = serializers.DateTimeField(source='timestamp', format="%Y-%m-%d %H:%M:%S", read_only=True)
-    source_file_name = serializers.CharField(source='source_file.file.name', read_only=True, allow_null=True)
     
-    # --- НОВОЕ: Поле для отформатированной длительности ---
+    # --- ИЗМЕНЕНИЕ 1: Вместо имени файла, мы будем отдавать полный URL ---
+    # Это поле будет содержать URL вида /media/rinex_files/myfile.o
+    source_file_url = serializers.FileField(source='source_file.file', read_only=True)
+    
     duration_display = serializers.SerializerMethodField()
 
     class Meta:
         model = Observation
         fields = (
             'id', 'timestamp', 'timestamp_display', 
-            'duration', 'duration_display', # <-- Добавляем новые поля
+            'duration', 'duration_display',
             'location', 'latitude', 'longitude',
-            'receiver_number', 'antenna_height', 'source_file', 'source_file_name',
-            'raw_x', 'raw_y', 'raw_z'
+            'receiver_number', 'antenna_height',
+            # --- ИЗМЕНЕНИЕ 2: Добавляем новое поле source_file_url в ответ API ---
+            'source_file_url'
         )
 
-    # --- НОВОЕ: Метод для форматирования длительности ---
     def get_duration_display(self, obj):
         """
         Возвращает человекочитаемое представление длительности.
@@ -83,19 +85,15 @@ class GeodeticPointSerializer(GeoFeatureModelSerializer):
         """
         latest_obs = obj.observations.order_by('-timestamp').first()
         if latest_obs:
-            # Используем ObservationSerializer, чтобы получить все нужные поля, включая duration_display
             serializer = ObservationSerializer(latest_obs)
             return serializer.data
         return None 
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
-        # --- ИЗМЕНЕНИЕ: Небольшое исправление для get_latest_observation_data
-        # Теперь данные последнего наблюдения будут полными
         if 'properties' in representation:
             if 'id' not in representation['properties']:
                  representation['properties']['id'] = instance.id
-            # Переопределяем данные последнего наблюдения, чтобы использовать сериализатор
             representation['properties']['latest_observation_data'] = self.get_latest_observation_data(instance)
         return representation
 

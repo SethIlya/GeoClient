@@ -1,17 +1,16 @@
-# Django & DRF
+# geoclient/requirements.txt
+
 django
 djangorestframework
 djangorestframework-gis
 pyproj
 
-# Database
+
 psycopg2-binary
 
-# WSGI Server
+
 gunicorn
 
-# Static Files
-whitenoise[brotli]
 
-# CORS
-django-cors-headers
+whitenoise[brotli]
+django-cors-headers 

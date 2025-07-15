@@ -14,19 +14,19 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-# app/urls.py (полный путь C:\Users\iimin\DJANGO_PRAKTIK\app\urls.py)
+# app/urls.py
 
 from django.contrib import admin
-from django.urls import path, include # Убедитесь, что include импортирован
-from django.conf import settings
-from django.conf.urls.static import static
+from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    
+    # Все API-запросы по-прежнему здесь
+    path('api/', include('geoclient.api_urls')),
+    
+    # --- ИЗМЕНЕНИЕ: Мы УДАЛИЛИ отсюда re_path для /media/ ---
+    
+    # Все остальные запросы уходят во Vue-приложение (catch-all)
     path('', include('geoclient.urls')), 
-    path('api/', include('geoclient.api_urls')), # <--- ВАЖНО: /api/ должно вести к geoclient.api_urls
 ]
-
-# Это для раздачи медиа-файлов (загруженных RINEX) в режиме DEBUG
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

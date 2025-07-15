@@ -2,6 +2,7 @@
 <template>
   <div class="point-info-card card shadow-sm">
     <div class="card-body">
+      <!-- ... (часть шаблона до списка наблюдений без изменений) ... -->
       <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
         <h5 class="card-title mb-0">Информация о пункте</h5>
         
@@ -66,18 +67,21 @@
                         <div v-for="obs in point.properties.observations" :key="obs.id" class="list-group-item p-3 border rounded mb-2">
                             <p class="mb-2 fw-bold"><i class="bi bi-calendar-event me-2"></i>{{ obs.timestamp_display }}</p>
                             <ul class="list-unstyled small ps-2">
-                                <!-- --- ИЗМЕНЕНИЕ ЗДЕСЬ --- -->
                                 <li class="mb-1">
                                     <strong>Длительность:</strong> 
                                     <span :class="{'text-muted fst-italic': !obs.duration_display}">
                                         {{ obs.duration_display || 'Нет данных' }}
                                     </span>
                                 </li>
-                                <!-- --- КОНЕЦ ИЗМЕНЕНИЯ --- -->
                                 <li class="mb-1"><strong>Координаты:</strong> <span class="font-monospace">{{ obs.latitude?.toFixed(6) }}, {{ obs.longitude?.toFixed(6) }}</span></li>
                                 <li class="mb-1"><strong>Приемник:</strong> <span :class="{'text-muted fst-italic': !obs.receiver_number}">{{ obs.receiver_number || 'Нет данных' }}</span></li>
                                 <li class="mb-2"><strong>Высота антенны (H):</strong> <span :class="{'text-muted fst-italic': obs.antenna_height == null}">{{ obs.antenna_height != null ? `${obs.antenna_height} м` : 'Нет данных' }}</span></li>
                             </ul>
+                            <!-- 
+                              --- ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ ССЫЛКИ ЗДЕСЬ ---
+                              Теперь ссылка ведет на наш новый, надежный API-endpoint.
+                              Она строится из ID наблюдения (obs.id).
+                            -->
                             <a :href="`/api/observations/${obs.id}/download/`" class="btn btn-sm btn-outline-primary w-100" download>
                                 <i class="bi bi-download me-2"></i>Скачать исходный файл
                             </a>
@@ -102,6 +106,7 @@
 </template>
 
 <script setup>
+// Скриптовая часть этого файла остается без изменений
 import { ref, watch, getCurrentInstance } from 'vue';
 import StationNameSelector from './StationNameSelector.vue';
 
@@ -126,8 +131,8 @@ const pointTypes = ref([
     { value: 'ggs_kurgan', text: 'Пункты ГГС на курганах' },
     { value: 'survey', text: 'Точки съемочной сети' }, 
     { value: 'survey_kurgan', text: 'Точки съемочной сети на курганах' },
-    { value: 'astro', text: 'Астрономические пункты' }, 
-    { value: 'leveling', text: 'Нивелирные марки/реперы' },
+    { value: 'astro', text: 'Астрономические пункты/Высокоточная сеть' },
+    { value: 'leveling', text: 'Нивелирная марка/ГНСС' },
     { value: 'default', text: 'Неопределенный тип' },
 ]);
 
@@ -202,6 +207,7 @@ const deletePoint = async () => {
 </script>
 
 <style scoped>
+/* Стили остаются без изменений */
 .details li {
   margin-bottom: 0.75rem;
   font-size: 0.9rem;
@@ -214,5 +220,15 @@ const deletePoint = async () => {
 }
 .observation-list .list-group-item {
     background-color: #f8f9fa;
+}
+.card-body {
+  padding: 1.25rem;
+}
+.placeholder {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 </style>
