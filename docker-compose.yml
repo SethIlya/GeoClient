@@ -1,58 +1,49 @@
-# docker-compose.yml (версия для TimeWeb)
+# docker-compose.yml
 
+# Директиву 'version' можно убрать, в новых версиях она не обязательна.
 services:
   # Сервис базы данных PostGIS
   db:
     image: postgis/postgis:14-3.3
-    #  ИЗМЕНЕНО: Вместо 'postgres_data' используем 'timeweb.storage'
-    # Данные БД будут храниться в папке /database_data внутри общего хранилища
     volumes:
-      - timeweb.storage:/var/lib/postgresql/data/
+      - postgres_data:/var/lib/postgresql/data/
     environment:
-      # ❗️ ВАЖНО: Эти данные лучше перенести в "Переменные окружения" или "Секреты" в панели TimeWeb
       - POSTGRES_DB=praktika
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=mysecretpassword
+      - POSTGRES_PASSWORD=mysecretpassword # На сервере обязательно замените!
     restart: unless-stopped
-
-  # Сервис вашего Django-приложения
   web:
     build: .
     command: gunicorn app.wsgi:application --bind 0.0.0.0:8000
     
-    #  ИЗМЕНЕНО: Полностью заменяем секцию volumes
     volumes:
-      #  УДАЛЕНО: "- .:/app" - это только для локальной разработки.
-      #  УДАЛЕНО: "staticfiles:/..." и "mediafiles:/..." - именованные тома запрещены.
-      
-      #  ДОБАВЛЕНО: Монтируем все Постоянное хранилище TimeWeb в папку /app/storage
-      # Внутри этой папки Django будет создавать подпапки для статики и медиа.
-      - timeweb.storage:/app/storage
-
-    #  УДАЛЕНО: Секция ports не нужна, TimeWeb сам управляет портами.
+      - .:/app
+      - staticfiles:/app/staticfiles
+      - mediafiles:/app/mediafiles
     
+    ports:
+      - "8000:8000"
+      
     environment:
-      #  ВАЖНО: Эти данные тоже перенесите в панель TimeWeb!
       - SECRET_KEY=12345
-      - DEBUG=0
-      #  ОБЯЗАТЕЛЬНО укажите ваш реальный домен от TimeWeb!
-      - ALLOWED_HOSTS=ВАШ_ДОМЕН.tw1.ru,http://sethilya-geoclient-2561.twc1.net/
+      - DEBUG=0 
+      - ALLOWED_HOSTS=127.0.0.1,localhost
       - DB_NAME=praktika
       - DB_USER=postgres
       - DB_PASSWORD=mysecretpassword
       - DB_HOST=db
       - DB_PORT=5432
-      # ОБЯЗАТЕЛЬНО укажите ваш реальный домен для CORS/CSRF!
-      - CORS_ALLOWED_ORIGINS=http://sethilya-geoclient-2561.twc1.net/
-      - CSRF_TRUSTED_ORIGINS=http://sethilya-geoclient-2561.twc1.net/
+      - CORS_ALLOWED_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
+      - CSRF_TRUSTED_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
       
-      #  ДОБАВЛЕНО: Указываем Django, где теперь хранить статику и медиа.
-      # Эти пути ведут ВНУТРЬ папки /app/storage, которую мы примонтировали выше.
-      - STATIC_ROOT=/app/storage/staticfiles
-      - MEDIA_ROOT=/app/storage/mediafiles
-
     depends_on:
       - db
     restart: unless-stopped
 
-# ДАЛЕНО: Корневая секция 'volumes' полностью удалена. Именно она вызывала ошибку.
+volumes:
+  postgres_data:
+  staticfiles:
+  mediafiles:
+
+
+
