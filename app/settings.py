@@ -1,53 +1,49 @@
-"""
-Django settings for app project.
-
-Optimized for Docker environments.
-Reads configuration directly from environment variables.
-"""
+# app/settings.py
 
 import os
+import platform
 from pathlib import Path
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# ==============================================================================
+# ОСНОВНЫЕ НАСТРОЙКИ
+# ==============================================================================
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-default-key-for-dev')
+DEBUG = os.environ.get('DEBUG', '1') == '1'
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,web').split(',')
 
-# ==============================================================================
-# ОСНОВНЫЕ НАСТРОЙКИ (ИЗ ПЕРЕМЕННЫХ ОКРУЖЕНИЯ)
-# ==============================================================================
+DATA_UPLOAD_MAX_NUMBER_FILES = 300
 
-# Эти настройки у вас уже были сделаны правильно, ничего не меняем
-SECRET_KEY = os.environ.get('SECRET_KEY')
-DEBUG = os.environ.get('DEBUG', '0') == '1'
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
-
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+]
 
 # ==============================================================================
 # ПРИЛОЖЕНИЯ (APPLICATIONS)
 # ==============================================================================
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'whitenoise.runserver_nostatic',
     'django.contrib.staticfiles',
     'django.contrib.gis',
-
-    # Сторонние приложения
     'rest_framework',
     'rest_framework_gis',
+    'rest_framework.authtoken',
     'corsheaders',
-
-    # Ваши приложения
-    'geoclient',
+    'django_vite',
+    'geoclient.apps.GeoclientConfig',
 ]
 
+# ==============================================================================
+# MIDDLEWARE
+# ==============================================================================
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    # WhiteNoise Middleware должен быть здесь, на втором месте.
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -60,12 +56,13 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'app.urls'
 
+# ==============================================================================
+# ШАБЛОНЫ (TEMPLATES)
+# ==============================================================================
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [
-            BASE_DIR / 'client' / 'dist',
-        ],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -80,28 +77,23 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'app.wsgi.application'
 
-
 # ==============================================================================
 # БАЗА ДАННЫХ (DATABASE)
 # ==============================================================================
-
-# Этот блок у вас также был идеален для продакшена
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': os.environ.get('DB_NAME'),
-        'USER': os.environ.get('DB_USER'),
-        'PASSWORD': os.environ.get('DB_PASSWORD'),
-        'HOST': os.environ.get('DB_HOST'),
-        'PORT': os.environ.get('DB_PORT'),
+        'NAME': os.environ.get('DB_NAME', 'Praktika'),
+        'USER': os.environ.get('DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', '12345'),
+        'HOST': os.environ.get('DB_HOST', 'db'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
 
-
 # ==============================================================================
-# ПАРОЛИ И ИНТЕРНАЦИОНАЛИЗАЦИЯ
+# ВАЛИДАЦИЯ ПАРОЛЕЙ
 # ==============================================================================
-
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -109,61 +101,79 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
+# ==============================================================================
+# ИНТЕРНАЦИОНАЛИЗАЦИЯ
+# ==============================================================================
 LANGUAGE_CODE = 'ru-ru'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-
 # ==============================================================================
 # СТАТИЧЕСКИЕ И МЕДИА ФАЙЛЫ
 # ==============================================================================
-
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'mediafiles'
 
-# ✅ ИЗМЕНЕНО: Папка, куда `collectstatic` собирает всю статику для продакшена.
-# Пытается взять путь из переменной окружения 'STATIC_ROOT'. Если ее нет,
-# использует старый путь для локальной разработки.
-STATIC_ROOT = os.environ.get('STATIC_ROOT', BASE_DIR / 'staticfiles')
-
-# Источники статических файлов (откуда `collectstatic` будет их брать).
 STATICFILES_DIRS = [
-    BASE_DIR / 'client' / 'dist',
+    BASE_DIR / "client" / "dist",
 ]
 
-# Явно указываем WhiteNoise, что корень нашего SPA-приложения (index.html)
-# и все его ассеты (JS, CSS) лежат в этой директории.
-WHITENOISE_ROOT = BASE_DIR / 'client' / 'dist'
-
-# Движок для хранения. Это включает сжатие и кэширование.
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-
-# Настройки для медиа-файлов
-MEDIA_URL = '/media/'
-
-# ✅ ИЗМЕНЕНО: Путь для загружаемых пользователями медиа-файлов.
-# Точно так же берем путь из переменной окружения 'MEDIA_ROOT' для продакшена.
-MEDIA_ROOT = os.environ.get('MEDIA_ROOT', BASE_DIR / 'mediafiles')
-
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # ==============================================================================
-# НАСТРОЙКИ CORS и CSRF
+# НАСТРОЙКИ CORS (Cross-Origin Resource Sharing)
 # ==============================================================================
-
-# Этот блок у вас уже был настроен правильно
-_csrf_trusted_origins_str = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
-CSRF_TRUSTED_ORIGINS = _csrf_trusted_origins_str.split(',') if _csrf_trusted_origins_str else []
-
-_cors_allowed_origins_str = os.environ.get('CORS_ALLOWED_ORIGINS', '')
-CORS_ALLOWED_ORIGINS = _cors_allowed_origins_str.split(',') if _cors_allowed_origins_str else []
-
-if os.environ.get('CORS_ALLOW_ALL_ORIGINS') == '1':
-    CORS_ALLOW_ALL_ORIGINS = True
-
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 
 # ==============================================================================
-# ПРОЧИЕ НАСТРОЙКИ
+# НАСТРОЙКИ DJANGO REST FRAMEWORK
 # ==============================================================================
+DEFAULT_RENDERERS = [
+    'rest_framework.renderers.JSONRenderer',
+]
+if DEBUG:
+    DEFAULT_RENDERERS.append('rest_framework.renderers.BrowsableAPIRenderer')
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 100,
+    'DEFAULT_RENDERER_CLASSES': DEFAULT_RENDERERS,
+}
+
+LOGIN_URL = 'admin:login'
+LOGOUT_REDIRECT_URL = '/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-DATA_UPLOAD_MAX_NUMBER_FILES = 300
+
+# ==============================================================================
+# НАСТРОЙКИ DJANGO-VITE
+# ==============================================================================
+# --- ИСПРАВЛЕНИЕ: Используем правильные ключи dev_server_host и dev_server_port ---
+DJANGO_VITE = {
+    "default": {
+        "manifest_path": BASE_DIR / "client" / "dist" / ".vite" / "manifest.json",
+        "dev_mode": DEBUG,
+        "dev_server_host": "127.0.0.1",
+        "dev_server_port": 5173,
+    }
+}
+
+# ==============================================================================
+# СПЕЦИФИЧНЫЕ ДЛЯ СИСТЕМЫ НАСТРОЙКИ (GDAL)
+# ==============================================================================
+if platform.system() == 'Windows':
+    CONDA_BIN_PATH = 'C:/Users/ImineevI/Проекты/GeoClient/.conda/Library/bin'
+    if os.path.exists(CONDA_BIN_PATH):
+        os.environ['PATH'] = CONDA_BIN_PATH + os.pathsep + os.environ.get('PATH', '')
+        GDAL_LIBRARY_PATH = os.path.join(CONDA_BIN_PATH, 'gdal.dll')
+        if os.path.exists(GDAL_LIBRARY_PATH):
+            os.environ['GDAL_LIBRARY_PATH'] = GDAL_LIBRARY_PATH

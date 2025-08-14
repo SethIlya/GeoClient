@@ -1,41 +1,23 @@
+<!-- client/index.html -->
 <!DOCTYPE html>
 <html lang="ru">
   <head>
     <meta charset="UTF-8">
+    <link rel="icon" href="/favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Карта точек RINEX (Vue App)</title>
-
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" 
-          rel="stylesheet" 
-          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" 
-          crossorigin="anonymous">
+    <title>Карта RINEX точек (Режим разработки)</title>
     
-    <!-- Стили Leaflet (если вы не импортируете их в JS) -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-          crossorigin=""/>
-    
-    <script>
-      // Заглушка для DJANGO_SETTINGS, если запускаем напрямую с Vite dev server без Django
-       if (typeof window.DJANGO_SETTINGS === 'undefined') {
-        window.DJANGO_SETTINGS = {
-      csrfToken: null, // Чтобы main.js пошел на API
-      apiPointsUrl: "/api/points/", // Будет проксироваться
-      apiUploadUrl: "/api/upload-rinex/", // Будет проксироваться
-      apiCsrfUrl: "/api/get-csrf-token/" // Будет проксироваться
-    };
-  }
-    </script>
+    <!-- Стили Bootstrap, подключаемые из CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   </head>
   <body>
+    <!-- Корневой элемент для Vue-приложения -->
     <div id="app"></div>
-    
-    <!-- Bootstrap JS Bundle (включает Popper) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" 
-            integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" 
-            crossorigin="anonymous"></script>
-    
+
     <script type="module" src="/src/main.js"></script>
+
+    <!-- Скрипты Bootstrap, подключаемые из CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
   </body>
 </html>

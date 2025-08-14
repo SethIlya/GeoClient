@@ -15,18 +15,15 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 # app/urls.py
-
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    
-    # Все API-запросы по-прежнему здесь
     path('api/', include('geoclient.api_urls')),
     
-    # --- ИЗМЕНЕНИЕ: Мы УДАЛИЛИ отсюда re_path для /media/ ---
-    
-    # Все остальные запросы уходят во Vue-приложение (catch-all)
-    path('', include('geoclient.urls')), 
+    # Этот паттерн должен быть последним, так как он "ловит" все остальные запросы
+    path('', include('geoclient.urls')),
 ]

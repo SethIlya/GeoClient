@@ -2,22 +2,24 @@
   <div class="file-upload-section card shadow-sm">
     <div class="card-body">
       <h5 class="card-title mb-3">Загрузить RINEX файл(ы)</h5>
+      <!-- Мы используем @submit.prevent, чтобы форма не перезагружала страницу -->
       <form @submit.prevent="handleFileUpload">
         <div class="mb-3">
           <label for="rinexFile" class="form-label">Выберите файл(ы) (.o, .n, .g, .rnx):</label>
           <input
             type="file"
-            class="form-control form-control-sm" 
+            class="form-control form-control-sm"
             id="rinexFile"
             ref="fileInput"
             @change="onFileSelected"
-            accept=".rnx, .obs, .nav, .o, .n, .g, .24o, .23o, .22o, .21o, .20o" 
+            accept=".rnx, .obs, .nav, .o, .n, .g, .24o, .23o, .22o, .21o, .20o"
             required
             multiple
           />
-          <div class="form-text small" v-if="selectedFiles.length > 0">
+          <!-- Эта часть теперь будет корректно отображать информацию о файлах -->
+          <div class="form-text small mt-2" v-if="selectedFiles.length > 0">
             Выбрано файлов: {{ selectedFiles.length }}
-            <ul>
+            <ul class="mb-0 mt-1">
                 <li v-for="file in selectedFiles.slice(0, 5)" :key="file.name" class="text-muted" style="font-size: 0.75rem;">
                     {{ file.name }} ({{ (file.size / 1024).toFixed(1) }} KB)
                 </li>
@@ -25,9 +27,9 @@
             </ul>
           </div>
         </div>
-        <button 
-          type="submit" 
-          :disabled="isUploading || !selectedFiles.length" 
+        <button
+          type="submit"
+          :disabled="isUploading || !selectedFiles.length"
           class="btn btn-primary btn-sm w-100"
         >
           <span v-if="isUploading" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
@@ -39,9 +41,9 @@
 </template>
 
 <script setup>
-import { ref, getCurrentInstance, defineProps } from 'vue';
+import { ref, getCurrentInstance } from 'vue';
 
-// --- ПРИНИМАЕМ PROP ОТ App.vue ---
+// --- Props, которые компонент принимает от родителя ---
 const props = defineProps({
     apiUploadUrl: {
         type: String,
@@ -49,22 +51,28 @@ const props = defineProps({
     }
 });
 
+// --- События, которые компонент может отправлять родителю ---
+const emit = defineEmits(['upload-complete', 'upload-message']);
+
+// --- Внутреннее состояние компонента ---
 const fileInput = ref(null);
-const selectedFiles = ref([]);
+const selectedFiles = ref([]); // Эта переменная должна обновляться
 const isUploading = ref(false);
 
 const instance = getCurrentInstance();
 const $axios = instance.appContext.config.globalProperties.$axios;
 
-// --- УДАЛЯЕМ СТАРЫЙ СПОСОБ ПОЛУЧЕНИЯ НАСТРОЕК ---
-// const $djangoSettings = instance.appContext.config.globalProperties.$djangoSettings;
-
-const emit = defineEmits(['upload-complete', 'upload-message']);
-
+// --- Обработчик выбора файлов ---
 const onFileSelected = (event) => {
+  // --- ДИАГНОСТИКА: Эта строка появится в консоли браузера (F12) ---
+  console.log('onFileSelected сработал!', event.target.files);
+  // -------------------------------------------------------------------
+
+  // Обновляем нашу реактивную переменную
   selectedFiles.value = Array.from(event.target.files);
 };
 
+// --- Обработчик отправки формы ---
 const handleFileUpload = async () => {
   if (!selectedFiles.value.length) {
     emit('upload-message', { type: 'warning', text: 'Пожалуйста, выберите хотя бы один файл.' });
@@ -79,34 +87,19 @@ const handleFileUpload = async () => {
   });
 
   try {
-    // --- ИСПОЛЬЗУЕМ URL ИЗ PROPS ---
-    const response = await $axios.post(props.apiUploadUrl, formData, {
-        headers: {
-            'Content-Type': 'multipart/form-data'
-        }
-    });
-    emit('upload-complete', response.data); 
+    const response = await $axios.post(props.apiUploadUrl, formData);
+    emit('upload-complete', response.data);
   } catch (error) {
-    console.error('Ошибка загрузки файла(ов):', error);
+    console.error('Ошибка загрузки файла(ов):', error.response || error);
     let errorMessage = 'Произошла ошибка при загрузке файла(ов).';
     if (error.response) {
-        if (error.response.data) {
-            if (typeof error.response.data.detail === 'string') {
-                errorMessage = error.response.data.detail;
-            } else if (typeof error.response.data.message === 'string') {
-                errorMessage = error.response.data.message;
-            } else if (Array.isArray(error.response.data.errors)) {
-                errorMessage = error.response.data.errors.join(' ');
-            }
-        } else if (error.response.statusText) {
-             errorMessage = `Ошибка сервера: ${error.response.status} ${error.response.statusText}`;
-        }
+      errorMessage = error.response.data?.detail || `Ошибка сервера: ${error.response.status}`;
     }
-    emit('upload-complete', { 
-        success: false, 
+    emit('upload-complete', {
+        success: false,
         message: errorMessage,
         messages: [{type: 'danger', text: errorMessage}],
-        total_created_count: 0 
+        total_created_count: 0
     });
   } finally {
     isUploading.value = false;

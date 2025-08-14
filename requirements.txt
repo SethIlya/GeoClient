@@ -5,12 +5,10 @@ djangorestframework
 djangorestframework-gis
 pyproj
 
-
 psycopg2-binary
-
 
 gunicorn
 
-
 whitenoise[brotli]
-django-cors-headers 
+django-cors-headers
+django_vite
