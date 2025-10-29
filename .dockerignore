@@ -1,0 +1,32 @@
+# Файл: .dockerignore
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+
+# Виртуальные окружения Python
+.conda
+venv
+.venv
+
+# Настройки IDE
+.vscode/
+
+# Кэш Python
+__pycache__/
+*.pyc
+
+# Зависимости и сборка фронтенда (мы их устанавливаем и собираем внутри контейнера)
+client/node_modules/
+client/dist/
+
+# Данные, которые монтируются как тома (volumes)
+mediafiles/
+staticfiles/
+
+# Файл с переменными окружения (не должен попадать в образ)
+.env

@@ -1,0 +1,25 @@
+#21
+
+.conda
+
+# Виртуальное окружение
+venv/
+.env
+
+# Файлы Python
+*.pyc
+__pycache__/
+
+# Файлы IDE
+.idea/
+.vscode/
+
+# Локальные настройки Django
+local_settings.py
+
+# База данных SQLite (если используется)
+db.sqlite3
+
+# Статика и медиа, которые генерируются
+/staticfiles/
+/mediafiles/
