@@ -11,9 +11,8 @@ services:
   web:
     build: .
     volumes:
-      # --- ИЗМЕНЕНИЕ: Заменяем bind mount на именованный том ---
+  
       - mediafiles:/app/mediafiles
-      # - staticfiles:/app/staticfiles  # Также можно сделать и для статики, если нужно
     ports:
       - "8000:8000"
     env_file:
