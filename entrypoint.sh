@@ -3,23 +3,19 @@
 # Выходим из скрипта, если любая команда завершится с ошибкой
 set -e
 
-# --- ДОБАВЛЕНО: Исправляем права на смонтированный том ---
-# Эта команда выполняется от root и дает права пользователю app на папку
-echo "Fixing media files ownership..."
-chown -R app:app /app/mediafiles
-
-echo "Waiting for PostgreSQL to start..."
-# Проверяем доступность хоста и порта базы данных
+echo "Ожидание запуска PostgreSQL..."
+# Проверяем доступность хоста 'db' и порта 5432
 while ! nc -z db 5432; do
   sleep 1
 done
-echo "PostgreSQL started"
+echo "PostgreSQL запущен"
 
-# Применяем миграции базы данных. Можно выполнять от root.
-echo "Applying database migrations..."
+# Применяем миграции базы данных. Django создаст нужные таблицы.
+echo "Применение миграций базы данных..."
 python manage.py migrate
 
-echo "Starting Gunicorn server..."
-# --- ИЗМЕНЕНИЕ: Запускаем Gunicorn, указывая ему сменить пользователя на 'app' ---
-# 'exec' заменяет процесс shell на gunicorn
-exec gunicorn app.wsgi:application --bind 0.0.0.0:8000 --user app --group app
+# Эта команда запустит ваше приложение.
+# app.wsgi:application - указывает на объект application в файле app/wsgi.py
+# --bind 0.0.0.0:8000 - Gunicorn будет слушать на порту 8000 внутри контейнера
+echo "Запуск Gunicorn сервера..."
+exec gunicorn app.wsgi:application --bind 0.0.0.0:8000

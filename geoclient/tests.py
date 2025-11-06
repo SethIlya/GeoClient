@@ -6,20 +6,15 @@ from .models import StationDirectoryName
 #dsdsdsdsdsfdsfыфыф
 
 class StationDirectoryNameAPITests(APITestCase):
-
     @classmethod
     def setUpTestData(cls):
         cls.uploader_group, _ = Group.objects.get_or_create(name='Uploader')
         cls.viewer_group, _ = Group.objects.get_or_create(name='Viewer')
-        
         cls.uploader_user = User.objects.create_user(username='testuploader', password='password123')
         cls.uploader_user.groups.add(cls.uploader_group)
-        
         cls.viewer_user = User.objects.create_user(username='testviewer', password='password123')
         cls.viewer_user.groups.add(cls.viewer_group)
-        
         cls.no_group_user = User.objects.create_user(username='nogroupuser', password='password123')
-
         StationDirectoryName.objects.create(name="Alpha")
         StationDirectoryName.objects.create(name="Bravo")
 
@@ -96,5 +91,4 @@ class StationDirectoryNameAPITests(APITestCase):
         response = self.client.delete(f'/api/station-names/{bravo_entry.pk}/')
         
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-
         self.assertFalse(StationDirectoryName.objects.filter(name="Bravo").exists())
