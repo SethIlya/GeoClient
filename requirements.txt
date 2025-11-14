@@ -1,0 +1,13 @@
+# geoclient/requirements.txt
+django
+djangorestframework
+djangorestframework-gis
+pyproj
+
+psycopg2-binary
+
+gunicorn
+waitress  
+whitenoise[brotli]
+django-cors-headers
+django_vite

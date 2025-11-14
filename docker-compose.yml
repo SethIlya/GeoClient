@@ -1,0 +1,27 @@
+services:
+  db:
+    image: postgis/postgis:14-3.3
+    platform: linux
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    env_file:
+      - ./.env
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+    platform: linux
+    volumes:
+      - mediafiles:/app/mediafiles
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./.env
+    depends_on:
+      - db
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  mediafiles:

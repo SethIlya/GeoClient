@@ -1,0 +1,22 @@
+# Файл: .gitignore
+
+# Виртуальные окружения Python
+.conda/
+venv/
+.venv/
+
+# Фронтенд-зависимости и сборка
+client/node_modules/
+client/dist/
+
+# Кэш и настройки IDE
+__pycache__/
+.vscode/
+*.pyc
+
+# Данные, которые монтируются как тома
+mediafiles/
+staticfiles/
+
+# Переменные окружения
+.env
