@@ -9,7 +9,7 @@
   <div v-else id="app-layout" class="d-flex flex-column vh-100">
     <!-- Шапка приложения -->
     <header class="app-header bg-dark text-white p-3 d-flex justify-content-between align-items-center shadow-sm">
-      <h1>Карта RINEX точек 222222</h1>
+      <h1>Карта RINEX точек 123</h1>
       <!-- Показываем информацию о пользователе и кнопки, только если он авторизован -->
       <div v-if="isAuthenticated" class="d-flex align-items-center">
         <button 
