@@ -82,15 +82,16 @@ WSGI_APPLICATION = 'app.wsgi.application'
 # ==============================================================================
 DATABASES = {
     'default': {
-        'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'Praktika',
-        'USER': 'postgres',
-        'PASSWORD': '12345',
-        'HOST': 'localhost',
-        'PORT': '5433', 
+        'ENGINE': os.environ.get('SQL_ENGINE', 'django.contrib.gis.db.backends.postgis'),
+        'NAME': os.environ.get('DB_NAME', 'praktika'),
+        'USER': os.environ.get('DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', '12345'),
+        
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        
+        'PORT': os.environ.get('DB_PORT', '5433'),
     }
 }
-
 # ==============================================================================
 # ВАЛИДАЦИЯ ПАРОЛЕЙ
 # ==============================================================================
