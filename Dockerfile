@@ -54,6 +54,13 @@ RUN python manage.py collectstatic --noinput
 
 # Открываем порт, на котором будет работать Gunicorn
 EXPOSE 8000
+<<<<<<< Updated upstream
 
 # Указываем скрипт, который будет запущен при старте контейнера
 ENTRYPOINT ["/entrypoint.sh"]
+=======
+ENTRYPOINT ["/app/entrypoint.sh"]
+
+# Добавляем команду по умолчанию сюда:
+CMD ["gunicorn", "app.wsgi:application", "--bind", "0.0.0.0:8000", "--user", "app", "--group", "app"]
+>>>>>>> Stashed changes
