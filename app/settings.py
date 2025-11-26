@@ -162,7 +162,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 DJANGO_VITE = {
     "default": {
         "manifest_path": BASE_DIR / "client" / "dist" / ".vite" / "manifest.json",
-        "dev_mode": DEBUG,
+        
+        "dev_mode": False, 
+        
         "dev_server_host": "127.0.0.1",
         "dev_server_port": 5173,
     }
