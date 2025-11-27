@@ -15,5 +15,4 @@ echo "Applying database migrations..."
 python manage.py migrate
 
 
-# Важно: здесь должно быть exec "$@"
 exec "$@" 
