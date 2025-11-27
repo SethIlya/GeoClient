@@ -1,43 +1,25 @@
-version: '3.8'
-
 services:
-  # 1. База данных
+  # Сервис базы данных
   db:
-    image: postgis/postgis:14-3.3
+    image: postgis/postgis:14-3.3 
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     env_file:
-      - ./.env
+      - ./.env 
     restart: unless-stopped
 
-  # 2. Бэкенд (Django)
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile  # Или Dockerfile.backend, если переименовал
-    # Порты наружу можно НЕ пробрасывать, так как Nginx общается с ним внутри сети
-    # Но для тестов можно оставить 8000
-    expose:
-      - "8000"
+  # Сервис веб-приложения
+  web:
+    build: . 
     volumes:
-      - mediafiles:/app/mediafiles
-    env_file:
-      - ./.env
-    depends_on:
-      - db
-    restart: unless-stopped
-
-  # 3. Фронтенд (Nginx + Vue) - ЭТО НОВЫЙ СЕРВИС
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
+      - ./mediafiles:/app/mediafiles
     ports:
-      - "80:80"  # Сайт будет доступен просто по http://localhost (без порта 8000)
+      - "8000:8000" 
+    env_file:
+      - ./.env 
     depends_on:
-      - backend
+      - db 
     restart: unless-stopped
 
 volumes:
   postgres_data:
-  mediafiles:
