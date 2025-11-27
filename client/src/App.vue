@@ -7,7 +7,7 @@
   <div v-else id="app-layout" class="d-flex flex-column vh-100">
 
     <header class="app-header bg-dark text-white p-3 d-flex justify-content-between align-items-center shadow-sm">
-      <h1>Карта RINEX точек TEST CI\CD...</h1>
+      <h1>Карта RINEX точек TESTIM</h1>
       <div v-if="isAuthenticated" class="d-flex align-items-center">
         <button 
           v-if="userPermissions.canUpload"
