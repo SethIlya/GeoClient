@@ -124,15 +124,10 @@ STATICFILES_DIRS = [
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# ==============================================================================
-# НАСТРОЙКИ CORS (Cross-Origin Resource Sharing)
-# ==============================================================================
+
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
-# ==============================================================================
-# НАСТРОЙКИ DJANGO REST FRAMEWORK
-# ==============================================================================
 DEFAULT_RENDERERS = [
     'rest_framework.renderers.JSONRenderer',
 ]

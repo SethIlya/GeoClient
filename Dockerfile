@@ -1,4 +1,4 @@
-# === СТАДИЯ 1: Сборка фронтенда (Vue.js) ===
+#СТАДИЯ 1: Сборка фронтенда (Vue.js)
 FROM node:18-alpine as builder
 WORKDIR /app/client
 
@@ -9,14 +9,14 @@ COPY client/ ./
 RUN npm run build
 
 
-# === СТАДИЯ 2: Сборка бэкенда (Django) ===
+# Сборка бэкенда (Django)
 FROM python:3.10-slim-bullseye
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
 # Установка системных зависимостей
-# ДОБАВЛЕНО: dos2unix - утилита, которая чинит Windows-переносы строк
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
