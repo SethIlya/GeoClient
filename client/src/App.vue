@@ -1,16 +1,13 @@
 <template>
-  <!-- 1. Показываем загрузчик, пока идет самая первая проверка авторизации -->
   <div v-if="!isAuthReady" class="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
     <span class="ms-2">Проверка авторизации...</span>
   </div>
 
-  <!-- 2. Основной макет приложения. Он рендерится всегда, когда проверка завершена. -->
   <div v-else id="app-layout" class="d-flex flex-column vh-100">
-    <!-- Шапка приложения -->
+
     <header class="app-header bg-dark text-white p-3 d-flex justify-content-between align-items-center shadow-sm">
-      <h1>Карта RINEX точек TEST CI\CD</h1>
-      <!-- Показываем информацию о пользователе и кнопки, только если он авторизован -->
+      <h1>Карта RINEX точек TEST CI\CD...</h1>
       <div v-if="isAuthenticated" class="d-flex align-items-center">
         <button 
           v-if="userPermissions.canUpload"
