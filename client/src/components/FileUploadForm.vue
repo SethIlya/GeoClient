@@ -11,7 +11,7 @@
             id="rinexFile"
             ref="fileInput"
             @change="onFileSelected"
-            accept=".rnx,.obs,.nav,.o,.n,.g,.24o,.24n,.24g,.23o,.23n,.23g,.22o,.22n,.22g,.21o,.21n,.21g,.20o,.20n,.20g,.19o,.19n,.19g,.18o,.18n,.18g"
+            accept=".rnx,.obs,.nav,.o,.n,.g,.26o,.26n,.26g,.25o,.25n,.25g,.24o,.24n,.24g,.23o,.23n,.23g,.22o,.22n,.22g,.21o,.21n,.21g,.20o,.20n,.20g,.19o,.19n,.19g,.18o,.18n,.18g,.17o,.17n,.17g,.16o,.16n,.16g,.15o,.15n,.15g"
             required
             multiple
           />
@@ -33,7 +33,7 @@
           class="btn btn-primary btn-sm w-100"
         >
           <span v-if="isUploading" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-          {{ isUploading ? 'Загрузка...' : `Загрузить ${selectedFiles.length} файла(ов)` }}
+          {{ isUploading ? 'Обработка...' : `Загрузить ${selectedFiles.length} файла(ов)` }}
         </button>
       </form>
     </div>
@@ -69,7 +69,11 @@ const handleFileUpload = async () => {
     return;
   }
   isUploading.value = true;
-  emit('upload-message', { type: 'info', text: `Начинается загрузка ${selectedFiles.value.length} файла(ов)...`});
+  // Обновляем сообщение, предупреждая пользователя о возможном долгом ожидании
+  emit('upload-message', { 
+    type: 'info', 
+    text: `Начинается загрузка и обработка ${selectedFiles.value.length} файла(ов)... Это может занять продолжительное время.`
+  });
 
   const formData = new FormData();
   selectedFiles.value.forEach(file => {
@@ -77,7 +81,13 @@ const handleFileUpload = async () => {
   });
 
   try {
-    const response = await $axios.post(props.apiUploadUrl, formData);
+    // ВАЖНОЕ ИЗМЕНЕНИЕ: timeout: 0 отключает таймаут на клиенте (в браузере).
+    // Теперь браузер будет ждать ответа от сервера столько, сколько потребуется, 
+    // не обрывая соединение через 30-60 секунд.
+    const response = await $axios.post(props.apiUploadUrl, formData, {
+        timeout: 0 
+    });
+    
     emit('upload-complete', response.data);
   } catch (error) {
     console.error('Ошибка загрузки файла(ов):', error.response || error);
@@ -93,6 +103,8 @@ const handleFileUpload = async () => {
             const serverMessage = error.response.data.detail || error.response.data.message || `Ошибка сервера: ${error.response.status}`;
             errorPayload.messages = [{ type: 'danger', text: serverMessage }];
         }
+    } else if (error.code === 'ECONNABORTED') {
+        errorPayload.messages = [{ type: 'danger', text: 'Превышено время ожидания соединения.' }];
     }
     emit('upload-complete', errorPayload);
   } finally {

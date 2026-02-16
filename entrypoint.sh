@@ -22,4 +22,4 @@ python manage.py migrate
 echo "Starting Gunicorn server..."
 # --- ИЗМЕНЕНИЕ: Запускаем Gunicorn, указывая ему сменить пользователя на 'app' ---
 # 'exec' заменяет процесс shell на gunicorn
-exec gunicorn app.wsgi:application --bind 0.0.0.0:8000 --user app --group app --timeout 300
+exec gunicorn app.wsgi:application --bind 0.0.0.0:8000 --user app --group app --timeout 600

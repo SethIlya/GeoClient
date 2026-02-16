@@ -25,7 +25,7 @@ def rinex_file_path(instance, filename):
 class UploadedRinexFile(models.Model):
     # Используем нашу новую функцию
     file = models.FileField(upload_to=rinex_file_path, verbose_name="Файл")
-    file_hash = models.CharField(max_length=64, unique=True, db_index=True, blank=True, null=True, help_text="Хэш-сумма SHA-256")
+    file_hash = models.CharField(max_length=64, db_index=True, blank=True, null=True, help_text="Хэш-сумма SHA-256")
     uploaded_at = models.DateTimeField(auto_now_add=True, verbose_name="Время загрузки")
     file_type = models.CharField(max_length=10, blank=True, null=True, verbose_name="Тип файла")
     remarks = models.TextField(blank=True, null=True, verbose_name="Заметки")

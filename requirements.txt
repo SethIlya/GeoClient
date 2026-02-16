@@ -11,3 +11,4 @@ waitress
 whitenoise[brotli]
 django-cors-headers
 django_vite
+requests

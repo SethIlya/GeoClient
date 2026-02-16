@@ -190,3 +190,20 @@ if platform.system() == 'Windows':
     else:
         # Если ты перенесешь проект на Linux/macOS или в Docker, этот блок не выполнится.
         print(f"WARNING: Windows-specific Conda path not found: {CONDA_BIN_PATH}. Assuming non-Windows environment.")
+
+
+
+# ==============================================================================
+# НАСТРОЙКИ ЗАГРУЗКИ ФАЙЛОВ
+# ==============================================================================
+
+# Создаем папку tmp внутри проекта, чтобы не использовать системный tmpfs (который маленький)
+TEMP_UPLOAD_DIR = BASE_DIR / 'tmp_uploads'
+if not TEMP_UPLOAD_DIR.exists():
+    TEMP_UPLOAD_DIR.mkdir(exist_ok=True)
+
+# Говорим Django использовать эту папку для временных файлов при загрузке
+FILE_UPLOAD_TEMP_DIR = str(TEMP_UPLOAD_DIR)
+
+# Если файл больше 2.5MB, он будет стримиться на диск (в нашу папку), а не в память.
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2.5 MB
